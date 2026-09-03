@@ -17,9 +17,12 @@ than error.
 
 **The change.** The repository's `delete_branch_on_merge` setting on
 GitHub is enabled, so the forge deletes a PR's head branch the moment
-the PR merges. Closing a PR *without* merging leaves its branch alone,
-which is the direction the harness relies on: an unmerged branch may be
-the only copy of real work. The setting is forge configuration and
+the PR merges — for branches hosted in this repository. A PR from a
+fork is outside the setting's reach: the head branch lives in the fork,
+and its owner remains responsible for it. Closing a PR *without*
+merging leaves its branch alone either way, which is the direction the
+harness relies on: an unmerged branch may be the only copy of real
+work. The setting is forge configuration and
 lives outside the tree; this brief is its in-tree record, per the
 convention that the work record is readable by anything that can read
 files. Anyone forking this repo onto other infrastructure re-applies
