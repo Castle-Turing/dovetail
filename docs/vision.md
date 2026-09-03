@@ -66,8 +66,10 @@ slot.
    socket is for the display.
 3. **Every editor instance is born reachable.** The shipped
    configuration guarantees a socket listening at a predictable path
-   under `$XDG_RUNTIME_DIR` (exact scheme decided during the first
-   milestone). The agent never configures at runtime; it only acts.
+   under `$XDG_RUNTIME_DIR` — settled in M1 as
+   `$XDG_RUNTIME_DIR/dovetail/nvim-<pid>.sock`, one socket per
+   instance; see the open questions below. The agent never configures
+   at runtime; it only acts.
 4. **The editor is a slot, not a hardcode.** Dovetail defines an editor
    contract; Neovim is the reference provider occupying the slot. This
    is castle-turing's Proposal 03 — intelligence is a tenant, not a
@@ -179,9 +181,20 @@ fasteners — is the bonus meaning, not the source.
 
 Resolved answers are recorded here or in the brief that settles them.
 
-- Socket path scheme: per Sway workspace, per session, or one primary?
-  How does an agent discover the "current" instance when several
-  exist?
+- ~~Socket path scheme~~ — **settled by task 0001** (`docs/tasks/`),
+  and implemented in the nixvim module: one socket per instance at
+  `$XDG_RUNTIME_DIR/dovetail/nvim-<pid>.sock`, started from the shipped
+  configuration and removed on clean exit, with consumers required to
+  tolerate stale sockets by connecting and verifying rather than
+  trusting the listing. Per-Sway-workspace naming was rejected for
+  baking a compositor concept into the editor layer; a single primary
+  socket at a fixed path was rejected because a second instance is the
+  normal case. The reference documentation is `docs/module.md`.
+- **Still open — instance discovery.** Given several live instances,
+  which one is "current"? Deliberately left to task 0002, the `show`
+  verb, where a consumer actually needs the answer; the scheme above
+  makes discovery "list one directory" but does not rank what it
+  finds.
 - Scratch file convention: naming, the private-layer slot for its
   location, and the promotion path from scratch to design doc or task.
 - Buffer-change reading in M2: `nvim_buf_attach` events versus
