@@ -3,10 +3,16 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-    nixvim = {
-      url = "github:nix-community/nixvim";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+
+    # Deliberately not `inputs.nixpkgs.follows = "nixpkgs"`. Nixvim is
+    # tested against the Nixpkgs it pins and warns — fatally, in its own
+    # `build.test` — when that pin is overridden. So the editor is built
+    # from Nixvim's Nixpkgs, and the `nixpkgs` input above supplies only
+    # the scaffolding around it: the check runner, the RPC client, the
+    # formatter. Having the check talk to the editor across two Nixpkgs
+    # revisions is a small bonus: it proves the socket is a real
+    # interface and not an artefact of one closure.
+    nixvim.url = "github:nix-community/nixvim";
   };
 
   outputs =
@@ -16,10 +22,10 @@
       nixvim,
     }:
     let
+      # x86_64-darwin is absent because Nixpkgs 26.11 dropped it.
       systems = [
         "x86_64-linux"
         "aarch64-linux"
-        "x86_64-darwin"
         "aarch64-darwin"
       ];
 
@@ -99,13 +105,13 @@
         {
           default = pkgs.mkShellNoCC {
             packages = [
-              pkgs.nixfmt-rfc-style
+              pkgs.nixfmt
               pkgs.nix-tree
             ];
           };
         }
       );
 
-      formatter = forAllSystems ({ pkgs, ... }: pkgs.nixfmt-rfc-style);
+      formatter = forAllSystems ({ pkgs, ... }: pkgs.nixfmt);
     };
 }

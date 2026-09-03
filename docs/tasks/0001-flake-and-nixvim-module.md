@@ -111,3 +111,95 @@ Per the operator contract: where this brief is ambiguous — the exact
 prose-settings list, the overlay-point mechanism, in-config server
 versus wrapper — decide, and report the decision and its reasoning in
 the PR so the record stays honest.
+
+## Implementation record
+
+Written during implementation, per the section above. Where this
+contradicts anything earlier in the brief, this section is what was
+built.
+
+**The in-config server works; no wrapper was needed.** The socket is
+started from `extraConfigLuaPre`, which runs before any private-layer
+configuration, so a broken overlay still leaves an instance you can
+reach and inspect. The guarantee therefore travels with the
+configuration and holds for every launch path, including
+`nvim --headless`, which is what the check exercises. The brief's
+fallback to a `--listen` wrapper was not taken.
+
+**Failure is reported in globals, not on stderr.** `g:dovetail_socket`
+carries the path and `g:dovetail_socket_error` carries the reason there
+isn't one; the module prints nothing at startup. This is not only
+tidiness: nixvim's own `build.test` runs `nvim --headless +q` and fails
+the build if a single byte reaches stderr, and it runs in a sandbox
+where `$XDG_RUNTIME_DIR` is unset — so a `vim.notify` on that path
+would have made the module's own smoke test unpassable. Since a missing
+`$XDG_RUNTIME_DIR` means there is no second location that is equally
+private, the module declines to invent one and records why.
+
+**The prose settings are four, all buffer-local to markdown:** `wrap`
+and `linebreak` (required by the brief), plus `breakindent`, which is
+what makes a wrapped list item readable rather than merely wrapped, and
+`textwidth=0`, so that soft wrapping is never quietly undone by the
+editor rewriting the file to hard-wrap it. Spell checking and its
+dictionary, `conceallevel`, `showbreak`, and remapping `j`/`k` to move
+by display line were all considered and left out: each is something one
+reasonable person wants set differently from the next, which is the
+definition of taste under Principle 01. They belong in the overlay
+point, and the example private layer shipped with the checks sets two
+of them to prove it.
+
+**The overlay point is nixvim's own module composition**, with no
+Dovetail-specific option invented. A private layer is a nixvim module
+listed alongside ours in `evalNixvim`'s `modules`, or imported inside
+`programs.nixvim` under Home Manager, NixOS or nix-darwin. This
+composes cleanly because the module leaves every cosmetic option
+undefined, so nothing collides; where both sides do define an option,
+ordinary module-system merging applies. The mechanism is documented
+with a worked example in `docs/module.md` and is exercised by the
+`overlay-point` check, so the example is a tested claim.
+
+**The treesitter grammar set is bounded, not nixvim's default of every
+grammar it can build.** Markdown and `markdown_inline` are the reason
+the project exists; the rest are the languages this ecosystem's own
+trees are written in. `grammarPackages` is a list option, so a private
+layer adds to the set rather than replacing it — documented, and shown
+in the worked example.
+
+**Nixvim's `nixpkgs` input is not overridden.** `inputs.nixvim.inputs.
+nixpkgs.follows = "nixpkgs"` is the reflexive thing to write and it
+makes nixvim emit a warning that its own `build.test` treats as fatal;
+nixvim is tested against the Nixpkgs it pins. The editor is therefore
+built from nixvim's Nixpkgs, and this flake's own `nixpkgs` input
+supplies only the scaffolding: the check runner, the RPC client, the
+formatter. The `headless-socket` check consequently talks to the editor
+across two Nixpkgs revisions, which is a small bonus — it demonstrates
+the socket is a real interface rather than an artefact of one closure.
+
+**The `nix run` entry point is `packages.default`**, aliased as
+`packages.dovetail` rather than `packages.dovetail-nvim`: the package
+is the editor Dovetail ships, and naming it after the reference
+provider would be the same design smell the vision's starting position
+4 warns about.
+
+### Verification as built
+
+`nix flake check` runs three checks, all agent-testable:
+
+- `config` — nixvim's smoke test: no warnings, no failed assertions,
+  and `nvim` starts and quits without writing to stderr.
+- `headless-socket` — the brief's headless-launch check, plus the
+  markdown assertions. Launches a headless instance with a scratch
+  `$XDG_RUNTIME_DIR`; asserts exactly one socket appears under
+  `dovetail/`; asserts the process id in its name is the instance's own
+  by asking the instance over the socket rather than trusting the
+  shell; round-trips a trivial expression over RPC; reads back the four
+  markdown options buffer-locally and confirms they have not leaked
+  into the global options; confirms the markdown parser is on the
+  runtime path; then quits cleanly and asserts the socket is gone and
+  the directory empty. The RPC client is unwrapped Neovim from a
+  different Nixpkgs, so the check cannot pass by talking to itself.
+- `overlay-point` — the example private layer composes and builds.
+
+The two items the brief listed as needing human hands still need them:
+confirming a real private layer lands without friction, and judging the
+markdown defaults on a screen.
