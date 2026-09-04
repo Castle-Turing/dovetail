@@ -202,7 +202,9 @@ NixOS or nix-darwin, import it inside the `programs.nixvim` namespace:
 
 ## What `nix flake check` proves
 
-Three checks, all runnable by anyone with no hardware and no hands:
+Three of the flake's checks belong to the module, and all three are
+runnable by anyone with no hardware and no hands. (The other two
+belong to the `show` verb; see [`docs/show.md`](show.md).)
 
 - **`config`** — nixvim's own smoke test. The configuration evaluates
   with no warnings and no failed assertions, and the resulting `nvim`
