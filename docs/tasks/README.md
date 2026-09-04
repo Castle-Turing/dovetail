@@ -16,3 +16,11 @@ queue. Numbers are allocated by checking this directory at write time.
 This directory is the log a future agent reads cold to learn why the
 code is shaped the way it is; git history records only what changed.
 Move a merged task's file to `done/` when tidying.
+
+Tidying is worth doing promptly rather than eventually. A harness that
+runs this directory as a queue reads the top level and not `done/`, and
+decides what has already been built from the branch names its own runs
+produced — so a brief that merged by some other route looks like
+unstarted work and gets built a second time. Moving a merged brief into
+`done/` is what makes it unambiguously finished to a reader that was not
+there.
