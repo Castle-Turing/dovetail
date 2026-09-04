@@ -82,14 +82,28 @@ def run(argv: list[str] | None = None, environ: os._Environ | dict = os.environ)
     # business and is rarely the caller's.
     path = Path(args.file).expanduser().absolute()
 
-    compositor = compositor_module.detect(environ)
-    sway_tree = compositor.get_tree() if compositor is not None else None
+    explicit_socket = args.socket or environ.get("DOVETAIL_SOCKET") or None
+
+    # Step one of the rule wins outright when it applies, so none of the
+    # ambient state it would override is gathered: no compositor asked,
+    # no process table read, no directory listed. A caller who names a
+    # socket gets one round trip and nothing else.
+    compositor = None
+    sway_tree = None
+    process_table: dict[int, int] = {}
+    instances: list = []
+    if explicit_socket is None:
+        compositor = compositor_module.detect(environ)
+        if compositor is not None:
+            sway_tree = compositor.get_tree()
+        process_table = processes.read_process_table()
+        instances = editor_module.list_instances(environ)
 
     target = choose_target(
-        explicit_socket=args.socket or environ.get("DOVETAIL_SOCKET") or None,
+        explicit_socket=explicit_socket,
         sway_tree=sway_tree,
-        process_table=processes.read_process_table(),
-        instances=editor_module.list_instances(environ),
+        process_table=process_table,
+        instances=instances,
         verify=editor_module.is_reachable,
     )
 
