@@ -11,7 +11,14 @@ is worse than none.
 Format: a header of `Key: value` lines (`Title:` at minimum), a blank
 line, then a markdown body that becomes the working agent's prompt —
 boring on purpose, so any harness that reads files can consume the
-queue. Numbers are allocated by checking this directory at write time.
+queue.
+
+Numbers are allocated by checking this directory at write time —
+**including `done/`**. The sequence never restarts and a number is never
+reused: an archived brief is still the brief that owns its number, and
+after a sweep the top level can be empty of numbered files while `0001`
+and `0003` sit in `done/`. An allocator that reads only the top level
+would hand out `0001` again and collide with a merged piece of work.
 
 This directory is the log a future agent reads cold to learn why the
 code is shaped the way it is; git history records only what changed.
