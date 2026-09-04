@@ -55,19 +55,31 @@ marker rather than the comment's heading, so the gate's wording can
 change without silently switching the automation off — a failure mode
 that looks exactly like "no findings this week".
 
-**A concurrency group of one comment, which never cancels.** GitHub
-evaluates a workflow's concurrency group *before* the job's `if:`
+**A concurrency group computed from the marker, which never cancels.**
+GitHub evaluates a workflow's concurrency group *before* the job's `if:`
 condition, so a group keyed by the pull request catches every unrelated
 comment on it. The predecessor of this workflow in a sibling repository
 did that with cancellation enabled, and that repository's own review
 comments cancelled the handler mid-flight every time: across sixty runs,
 twenty-nine cancelled, thirty skipped, one failed, none completed. It
-had never once worked and nothing reported that it had not. Disabling
-cancellation is necessary but not sufficient, because GitHub keeps at
-most one *pending* run per group and a newer run evicts the waiting one
-— so an ordinary comment could still discard a queued handler. Keying
-the group by the triggering comment makes it a group nothing else can
-join.
+had never once worked and nothing reported that it had not.
+
+Disabling cancellation is necessary but not sufficient, because GitHub
+keeps at most one *pending* run per group and a newer run evicts the
+waiting one — so an ordinary comment could still discard a queued
+handler. Keying the group by the triggering comment fixes that and
+introduces a third failure: two gate comments on one pull request then
+sit in different groups, run at once, check out the same head and race
+to push, so one fails non-fast-forward and its findings go unanswered.
+
+The group is therefore computed. Gate comments share one
+per-pull-request group and serialize; every other comment gets a
+singleton group of its own, and can neither cancel nor evict them. One
+residual limit is accepted knowingly: with a handler running and one
+already queued, a third gate comment evicts the queued one. That
+requires the gate to have run three times on one pull request while a
+handler is still working, and losing a queued run is a better failure
+than two handlers pushing over each other.
 
 **An effective-permission check, not `author_association`.** On a public
 organization repository `MEMBER` includes organization members with no
@@ -77,8 +89,11 @@ spend the account's tokens on a write-enabled agent. The workflow
 queries the collaborator permission API and requires write, maintain or
 admin.
 
-The second and third of those came from the gate's own review of the
-first version of this workflow, on this pull request.
+The second and third of those came from the gate's own review of this
+workflow, on this pull request — and the concurrency rule took two
+rounds to get right, each round trading one hazard for a subtler one.
+The automation being installed here caught the defects in its own
+installation.
 
 ## Prerequisites this task cannot satisfy
 
