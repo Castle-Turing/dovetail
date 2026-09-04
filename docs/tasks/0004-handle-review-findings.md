@@ -48,23 +48,39 @@ repository regardless of what a vendor's hosted reviewer supports, and
 if the gate ever learns to post inline review comments, this workflow
 should follow it there.
 
-## Two rules in the file that must not be tidied away
+## Three rules in the file that must not be tidied away
 
 **Marker-matching, not prose-matching.** The trigger tests for the
 marker rather than the comment's heading, so the gate's wording can
 change without silently switching the automation off — a failure mode
 that looks exactly like "no findings this week".
 
-**`cancel-in-progress: false`.** GitHub evaluates a workflow's
-concurrency group *before* the job's `if:` condition, so every unrelated
-comment on the pull request joins the group. The predecessor of this
-workflow in a sibling repository keyed a pull-request-scoped group with
-cancellation enabled, and that repository's own review comments
-cancelled the handler mid-flight every time: across sixty runs, twenty-
-nine cancelled, thirty skipped, one failed, none completed. It had never
-once worked and nothing reported that it had not.
+**A concurrency group of one comment, which never cancels.** GitHub
+evaluates a workflow's concurrency group *before* the job's `if:`
+condition, so a group keyed by the pull request catches every unrelated
+comment on it. The predecessor of this workflow in a sibling repository
+did that with cancellation enabled, and that repository's own review
+comments cancelled the handler mid-flight every time: across sixty runs,
+twenty-nine cancelled, thirty skipped, one failed, none completed. It
+had never once worked and nothing reported that it had not. Disabling
+cancellation is necessary but not sufficient, because GitHub keeps at
+most one *pending* run per group and a newer run evicts the waiting one
+— so an ordinary comment could still discard a queued handler. Keying
+the group by the triggering comment makes it a group nothing else can
+join.
 
-## Prerequisite this task cannot satisfy
+**An effective-permission check, not `author_association`.** On a public
+organization repository `MEMBER` includes organization members with no
+access to this repository, and `COLLABORATOR` can be read-only or
+triage. Either could paste the marker into an open pull request and
+spend the account's tokens on a write-enabled agent. The workflow
+queries the collaborator permission API and requires write, maintain or
+admin.
+
+The second and third of those came from the gate's own review of the
+first version of this workflow, on this pull request.
+
+## Prerequisites this task cannot satisfy
 
 The workflow needs a `CLAUDE_CODE_OAUTH_TOKEN` secret, and this
 repository has no Actions secrets at all. Setting it requires the
@@ -74,6 +90,15 @@ because every repository under the organization needs the same one. The
 workflow fails loudly rather than silently when the secret is absent,
 which is the correct direction: an unhandled review is visible, a
 silently skipped run is not.
+
+A second secret, `REVIEW_BOT_TOKEN`, is optional but worth having.
+Pushes made with the default workflow credential do not start a pull
+request's checks, so a fix the handler pushes would leave a reader
+looking at a green tick belonging to the previous commit. With the
+secret, checkout and the agent both use a credential whose pushes emit
+events and the checks simply run. Without it the workflow still works,
+and the agent is instructed to state in its comment that the checks did
+not re-run, naming the unchecked commit.
 
 ## Non-goals
 
