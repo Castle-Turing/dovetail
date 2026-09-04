@@ -60,3 +60,17 @@ class TestEditorCommand:
         assert editor_command({"DOVETAIL_EDITOR": "/home/resident/bin/nvim"}) == (
             "/home/resident/bin/nvim"
         )
+
+
+class TestMalformedTerminalQuoting:
+    def test_an_unmatched_quote_is_a_show_error_naming_the_setting(self):
+        # shlex.split raises ValueError, which is not a ShowError and
+        # would reach the user as a traceback.
+        with pytest.raises(ShowError) as caught:
+            terminal_argv(None, {"DOVETAIL_TERMINAL": 'foot -e "unclosed'})
+        assert "$DOVETAIL_TERMINAL" in str(caught.value)
+
+    def test_the_flag_is_named_when_the_flag_is_at_fault(self):
+        with pytest.raises(ShowError) as caught:
+            terminal_argv('foot -e "unclosed', {})
+        assert "--terminal" in str(caught.value)

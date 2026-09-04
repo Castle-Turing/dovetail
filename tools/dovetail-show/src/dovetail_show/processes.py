@@ -51,8 +51,16 @@ def read_process_table(proc: str = "/proc") -> dict[int, int]:
         if not entry.isdigit():
             continue
         try:
-            with open(os.path.join(proc, entry, "stat"), "r") as handle:
-                ppid = parse_ppid(handle.read())
+            # Read bytes and decode leniently. A process name is whatever
+            # bytes its process chose, so a `comm` containing invalid
+            # UTF-8 is unusual but entirely legal — and decoding strictly
+            # would raise UnicodeDecodeError, which is not an OSError, so
+            # one such process anywhere on the machine would take down all
+            # of discovery rather than being skipped. Replacement
+            # characters cannot hurt: the parse counts fields after the
+            # last close paren and never looks at the name.
+            with open(os.path.join(proc, entry, "stat"), "rb") as handle:
+                ppid = parse_ppid(handle.read().decode("utf-8", errors="replace"))
         except OSError:
             continue
         if ppid is not None:

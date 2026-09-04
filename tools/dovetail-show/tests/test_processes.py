@@ -48,3 +48,18 @@ class TestReadProcessTable:
     def test_the_real_proc_contains_this_process(self):
         table = read_process_table()
         assert table.get(os.getpid()) == os.getppid()
+
+
+class TestUnusualProcessNames:
+    def test_a_comm_with_invalid_utf8_does_not_break_discovery(self, tmp_path):
+        # `comm` is whatever bytes a process chose for itself, so invalid
+        # UTF-8 is legal. Decoding strictly would raise UnicodeDecodeError
+        # — not an OSError — and one such process anywhere on the machine
+        # would take down all of discovery rather than being skipped.
+        proc = tmp_path / "proc"
+        (proc / "111").mkdir(parents=True)
+        (proc / "111" / "stat").write_bytes(b"111 (od\xffd) S 100 111 0\n")
+        (proc / "222").mkdir(parents=True)
+        (proc / "222" / "stat").write_bytes(b"222 (nvim) S 111 222 0\n")
+
+        assert read_process_table(str(proc)) == {111: 100, 222: 111}

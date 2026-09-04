@@ -29,6 +29,11 @@ NEW_WINDOW_TIMEOUT = 5.0
 # A single swaymsg query. It talks to a socket on the same machine.
 QUERY_TIMEOUT = 5.0
 
+# How long to wait for Sway to acknowledge a subscription. This is one
+# round trip over a local socket; a second is already generous, and
+# overrunning it costs a tiled window rather than a failure.
+SUBSCRIBE_TIMEOUT = 1.0
+
 
 class Sway:
     """The Sway compositor, driven over `swaymsg`."""
@@ -89,8 +94,19 @@ class _SwayWindowWatch:
         self._swaymsg = swaymsg
         self._process: subprocess.Popen | None = None
         self._buffer = ""
+        self._pending: list[dict] = []
 
     def __enter__(self) -> "_SwayWindowWatch":
+        """Start the subscription, and wait until Sway has acknowledged it.
+
+        Starting the process is not the same as being subscribed: until
+        Sway has processed the request it is not sending us anything, and
+        a window that maps in that gap is never reported. Sway answers a
+        subscription with `{"success": true}` before any event, so
+        waiting for that reply closes the window in which a terminal we
+        are about to spawn could map unseen.
+        """
+
         try:
             self._process = subprocess.Popen(
                 [self._swaymsg, "-t", "subscribe", "-m", "-r", '["window"]'],
@@ -100,7 +116,47 @@ class _SwayWindowWatch:
             )
         except OSError:
             self._process = None
+            return self
+
+        if not self._await_acknowledgement(SUBSCRIBE_TIMEOUT):
+            # No acknowledgement means we cannot claim to be watching.
+            # Tear the subscription down and let the caller carry on
+            # unplaced, exactly as it does when there is no compositor.
+            self.__exit__()
+            self._process = None
         return self
+
+    def _await_acknowledgement(self, timeout: float) -> bool:
+        """True once Sway has confirmed the subscription."""
+
+        deadline = time.monotonic() + timeout
+        while True:
+            # What has already arrived is answered before the stream is
+            # consulted, so a reply that came in with the first read is
+            # not waited on a second time.
+            replies = self._drain()
+            if replies:
+                acknowledgement, rest = replies[0], replies[1:]
+                # Anything that arrived alongside the reply is already an
+                # event, and dropping it here would reintroduce the race
+                # this method exists to close.
+                self._pending.extend(rest)
+                return acknowledgement.get("success") is True
+
+            if self._process is None or self._process.stdout is None:
+                return False
+            stream = self._process.stdout
+
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return False
+            ready, _, _ = select.select([stream], [], [], remaining)
+            if not ready:
+                return False
+            chunk = os.read(stream.fileno(), 1 << 16)
+            if not chunk:
+                return False
+            self._buffer += chunk.decode("utf-8", errors="replace")
 
     def __exit__(self, *exc_info: object) -> None:
         if self._process is None:
@@ -124,7 +180,8 @@ class _SwayWindowWatch:
         deadline = time.monotonic() + timeout
         stream = self._process.stdout
         while True:
-            for event in self._drain():
+            queued, self._pending = self._pending, []
+            for event in queued + self._drain():
                 if event.get("change") != "new":
                     continue
                 container = event.get("container")

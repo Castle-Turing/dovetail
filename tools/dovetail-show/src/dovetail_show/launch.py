@@ -52,9 +52,20 @@ def terminal_argv(
     and there is no terminal every reader of this file has installed.
     """
 
-    for source in (explicit, environ.get("DOVETAIL_TERMINAL"), environ.get("TERMINAL")):
+    names = ("--terminal", "$DOVETAIL_TERMINAL", "$TERMINAL")
+    values = (explicit, environ.get("DOVETAIL_TERMINAL"), environ.get("TERMINAL"))
+    for name, source in zip(names, values):
         if source and source.strip():
-            argv = shlex.split(source)
+            try:
+                argv = shlex.split(source)
+            except ValueError as exc:
+                # An unmatched quote. Naming the setting matters: three
+                # places can supply this, and a traceback would say which
+                # line of Python failed rather than which of them is
+                # malformed.
+                raise ShowError(
+                    f"{name} is not valid shell quoting ({exc}): {source}"
+                ) from exc
             if argv:
                 return argv
     raise ShowError(_NO_TERMINAL)
