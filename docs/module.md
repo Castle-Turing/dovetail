@@ -70,8 +70,9 @@ by then belong to something else entirely. The rule for a consumer is
 connect-and-verify, never trust-the-listing: open the socket, ask the
 instance for something, and treat a failure to answer as "this entry is
 rubbish, ignore it". Deciding *which* live instance is the current one
-when several answer is a separate question, deliberately left open until
-something needs the answer.
+when several answer is a separate question, settled by the `show` verb
+and documented in [`docs/show.md`](show.md): the innermost instance
+running inside the focused window, unless the caller named one outright.
 
 Two globals report the outcome, and the module writes nothing to stderr
 at startup:

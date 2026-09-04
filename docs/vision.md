@@ -99,12 +99,16 @@ slot.
 **M1 — show me the file.** A shared nixvim module (socket-on-launch,
 treesitter, markdown-friendly prose settings, a documented overlay
 point for private-layer keymaps and cosmetics) and a `show` verb: one
-invocation opens a named file in a sensibly placed Sway tile, whether
-or not an editor is already running. Placement is a deterministic,
-documented rule, not judgment — where the rule can be written, the
-rule is the best tenant; channel judgment belongs to the castle's
-router, later, if ever. This milestone is the itch that started the
-project: reading the ecosystem's own markdown without a browser.
+invocation opens a named file in the editor the resident is looking at,
+or in a new floating window if she is not looking at one. Placement is
+a deterministic, documented rule, not judgment — where the rule can be
+written, the rule is the best tenant; channel judgment belongs to the
+castle's router, later, if ever. The rule turned out to want *less*
+placement than this document first assumed: task 0002 settled it as
+"float it, and let the resident move it", so there is no workspace,
+split direction or tile-reuse policy to get wrong. This milestone is
+the itch that started the project: reading the ecosystem's own markdown
+without a browser.
 
 **M2 — the scriptorium.** A worksession for working through an idea in
 prose, pseudocode, or Python: one verb produces a Sway layout with a
@@ -190,11 +194,19 @@ Resolved answers are recorded here or in the brief that settles them.
   baking a compositor concept into the editor layer; a single primary
   socket at a fixed path was rejected because a second instance is the
   normal case. The reference documentation is `docs/module.md`.
-- **Still open — instance discovery.** Given several live instances,
-  which one is "current"? Deliberately left to task 0002, the `show`
-  verb, where a consumer actually needs the answer; the scheme above
-  makes discovery "list one directory" but does not rank what it
-  finds.
+- ~~Instance discovery~~ — **settled by task 0002** (`docs/tasks/`),
+  and implemented in `dovetail-show`: the current instance is the
+  innermost one running inside the focused window, found by taking the
+  focused window's process id from the compositor, collecting its
+  descendants from the process table, intersecting them with the socket
+  directory, ranking deepest first with ties broken by highest process
+  id, and connect-and-verifying each candidate in that order. A socket
+  the caller names outright wins over all of it, because that is a fact
+  rather than a guess; nothing found at all means the resident is not
+  looking at an editor, and one is launched. Ranking by socket mtime was
+  rejected as "oldest instance wins" in disguise — the mtime is set when
+  the server binds — and honest recency would need new module state that
+  nothing yet requires. The reference documentation is `docs/show.md`.
 - Scratch file convention: naming, the private-layer slot for its
   location, and the promotion path from scratch to design doc or task.
 - Buffer-change reading in M2: `nvim_buf_attach` events versus
