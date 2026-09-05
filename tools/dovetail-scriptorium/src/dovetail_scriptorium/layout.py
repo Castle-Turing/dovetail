@@ -115,10 +115,17 @@ def _walk(
 def assess(tree: object, editor: int, repl: int) -> Verdict:
     """Did the two windows come out side by side, editor on the left?
 
-    Checked in the order a reader would check it: are both windows still
-    there, are they tiled, are they on one workspace, are they siblings
-    in a horizontal split, and only then is the editor the left-hand one.
+    Checked in the order a reader would check it: could the tree be read
+    at all, are both windows still there, are they tiled, are they on one
+    workspace, are they siblings in a horizontal split, and only then is
+    the editor the left-hand one.
     """
+
+    if tree is None:
+        return Verdict(
+            ok=False,
+            complaint="the compositor could not be asked for its window tree",
+        )
 
     editor_place = locate(tree, editor)
     repl_place = locate(tree, repl)

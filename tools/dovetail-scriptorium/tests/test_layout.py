@@ -114,6 +114,12 @@ class TestTheRoomCameOutRight:
 
 
 class TestTheRoomDidNot:
+    def test_no_tree_at_all_is_not_a_lost_window(self):
+        verdict = assess(None, EDITOR, REPL)
+        assert not verdict.ok
+        assert "window tree" in verdict.complaint
+        assert not verdict.swap
+
     def test_a_window_the_compositor_has_lost(self):
         root = tree(workspace("1", [container(50, "splith", [window(EDITOR)])]))
         verdict = assess(root, EDITOR, REPL)
