@@ -1,14 +1,15 @@
-"""The local process table, read from /proc.
+"""The local process table, and what descends from what.
 
-Only two things are needed of it — every live pid, and each one's
-parent — so that `targeting` can ask which processes are running inside
-the focused window. Everything Linux-specific about that question lives
-here.
+Only two things are needed of the table — every live pid, and each one's
+parent — so that a caller can ask which processes are running inside a
+given window. Everything Linux-specific about that question lives here.
 """
 
 from __future__ import annotations
 
 import os
+from collections import deque
+from typing import Mapping
 
 
 def parse_ppid(stat: str) -> int | None:
@@ -66,3 +67,29 @@ def read_process_table(proc: str = "/proc") -> dict[int, int]:
         if ppid is not None:
             table[int(entry)] = ppid
     return table
+
+
+def descendant_depths(process_table: Mapping[int, int], root: int) -> dict[int, int]:
+    """Every descendant of `root`, mapped to its distance from `root`.
+
+    `root` itself is included at depth 0: an editor that is its own
+    Wayland client, rather than one running inside a terminal, is the
+    focused window and should still be found.
+    """
+
+    children: dict[int, list[int]] = {}
+    for pid, ppid in process_table.items():
+        children.setdefault(ppid, []).append(pid)
+
+    depths = {root: 0}
+    queue = deque([root])
+    while queue:
+        pid = queue.popleft()
+        for child in children.get(pid, ()):
+            if child in depths:
+                # A pid cannot really be its own ancestor; a snapshot torn
+                # mid-read could still say so, and a cycle here would hang.
+                continue
+            depths[child] = depths[pid] + 1
+            queue.append(child)
+    return depths

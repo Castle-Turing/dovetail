@@ -1,8 +1,8 @@
 """`dovetail-show` — put a named file in front of the resident.
 
 This file is the order the steps run in, and nothing else. The rule
-lives in `targeting`, the compositor in `compositor`, and everything
-Neovim-shaped in `editor`.
+lives in `targeting`; the compositor, the editor and the launch
+machinery live in `dovetail_seams`, shared with every other verb.
 """
 
 from __future__ import annotations
@@ -12,11 +12,12 @@ import os
 import sys
 from pathlib import Path
 
-from . import compositor as compositor_module
-from . import editor as editor_module
+from dovetail_seams import compositor as compositor_module
+from dovetail_seams import editor as editor_module
+from dovetail_seams import processes
+from dovetail_seams.errors import DovetailError
+
 from . import launch as launch_module
-from . import processes
-from .errors import ShowError
 from .targeting import LaunchNew, OpenIn, choose_target
 
 _DESCRIPTION = """\
@@ -76,7 +77,7 @@ def run(argv: list[str] | None = None, environ: os._Environ | dict = os.environ)
     args = _parser().parse_args(argv)
 
     if args.line is not None and args.line < 1:
-        raise ShowError(f"--line must be 1 or greater, not {args.line}")
+        raise DovetailError(f"--line must be 1 or greater, not {args.line}")
 
     # Absolute, because the instance's working directory is its own
     # business and is rarely the caller's.
@@ -124,7 +125,7 @@ def run(argv: list[str] | None = None, environ: os._Environ | dict = os.environ)
 
     if args.print_socket:
         if socket is None:
-            raise ShowError(
+            raise DovetailError(
                 "the file was opened in a new editor, but it published no "
                 f"socket within {launch_module.SOCKET_TIMEOUT:.0f} seconds, so "
                 "there is nothing to print"
@@ -136,7 +137,7 @@ def run(argv: list[str] | None = None, environ: os._Environ | dict = os.environ)
 def main(argv: list[str] | None = None) -> int:
     try:
         return run(argv)
-    except ShowError as exc:
+    except DovetailError as exc:
         print(f"dovetail-show: {exc}", file=sys.stderr)
         return 1
     except KeyboardInterrupt:

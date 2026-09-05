@@ -68,7 +68,8 @@
       };
 
       # A runnable editor, so a stranger can `nix run github:...#dovetail`
-      # without adopting any module system — and the verbs that drive it.
+      # without adopting any module system — and the verbs that drive it,
+      # over the seams they share.
       #
       # `default` stays the editor: `nix run github:Castle-Turing/dovetail`
       # is a documented entry point in `docs/module.md` and keeps meaning
@@ -81,8 +82,20 @@
           dovetail = (evalDovetail { inherit system; }).config.build.package;
           default = dovetail;
 
-          dovetail-show = pkgs.callPackage ./nix/packages/dovetail-show.nix {
+          # Not an executable: the compositor, editor, process and
+          # launch seams the verbs share, and the one place the editor,
+          # the RPC client and the REPL are baked in as store paths. It
+          # is an output so that its unit tests are a check.
+          dovetail-seams = pkgs.callPackage ./nix/packages/dovetail-seams.nix {
             dovetail-nvim = dovetail;
+          };
+
+          dovetail-show = pkgs.callPackage ./nix/packages/dovetail-show.nix {
+            inherit dovetail-seams;
+          };
+
+          dovetail-scriptorium = pkgs.callPackage ./nix/packages/dovetail-scriptorium.nix {
+            inherit dovetail-seams;
           };
         }
       );
@@ -108,6 +121,11 @@
               modules = [ ./nix/checks/example-private-layer.nix ];
             }).config.build.test;
 
+          # The unit tests over the shared seams — the slots, the
+          # compositor's window wait, the process table — which run in
+          # the package's own check phase, so this check is the package.
+          seams-unit = self.packages.${system}.dovetail-seams;
+
           # The show verb's unit tests over the targeting rule, which run
           # in the package's own check phase — so this check is the
           # package, and a rule that misranks instances fails the build.
@@ -127,6 +145,18 @@
           # silent, zero-exit-status success this used to be.
           show-launch-failure = pkgs.callPackage ./nix/checks/show-launch-failure.nix {
             dovetail-show = self.packages.${system}.dovetail-show;
+          };
+
+          # The scriptorium verb's unit tests over the scratch file
+          # convention, the layout rule and the order the steps run in.
+          scriptorium-unit = self.packages.${system}.dovetail-scriptorium;
+
+          # The scriptorium end to end, for the path a sandbox can reach:
+          # no compositor, so no layout — but a real editor holding the
+          # real scratch file, asked over RPC which file it has open.
+          scriptorium-room = pkgs.callPackage ./nix/checks/scriptorium-room.nix {
+            dovetail-nvim = self.packages.${system}.dovetail;
+            dovetail-scriptorium = self.packages.${system}.dovetail-scriptorium;
           };
         }
       );

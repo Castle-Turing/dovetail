@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from dovetail_show.editor import launch_argv, list_instances, socket_directory
+from dovetail_seams.editor import launch_argv, list_instances, socket_directory
 
 
 class TestSocketDirectory:

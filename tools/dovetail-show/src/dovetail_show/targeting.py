@@ -14,19 +14,23 @@ editor seam.
 
 from __future__ import annotations
 
-from collections import deque
 from dataclasses import dataclass
 from typing import Callable, Iterable, Mapping, Sequence
 
-from .errors import ShowError
+from dovetail_seams.editor import Instance
+from dovetail_seams.errors import DovetailError
+from dovetail_seams.processes import descendant_depths
 
-
-@dataclass(frozen=True)
-class Instance:
-    """A live editor instance: where to reach it, and what pid it runs as."""
-
-    socket: str
-    pid: int
+__all__ = [
+    "ExplicitSocketUnreachable",
+    "Instance",
+    "LaunchNew",
+    "OpenIn",
+    "Target",
+    "choose_target",
+    "focused_pid",
+    "rank_candidates",
+]
 
 
 @dataclass(frozen=True)
@@ -44,7 +48,7 @@ class LaunchNew:
 Target = OpenIn | LaunchNew
 
 
-class ExplicitSocketUnreachable(ShowError):
+class ExplicitSocketUnreachable(DovetailError):
     """The caller named a socket, and it did not answer.
 
     A caller that names a dead socket wants to hear about it, not to have
@@ -87,34 +91,6 @@ def _focused_node(node: object) -> dict | None:
                 if found is not None:
                     return found
     return None
-
-
-def descendant_depths(
-    process_table: Mapping[int, int], root: int
-) -> dict[int, int]:
-    """Every descendant of `root`, mapped to its distance from `root`.
-
-    `root` itself is included at depth 0: an editor that is its own
-    Wayland client, rather than one running inside a terminal, is the
-    focused window and should still be found.
-    """
-
-    children: dict[int, list[int]] = {}
-    for pid, ppid in process_table.items():
-        children.setdefault(ppid, []).append(pid)
-
-    depths = {root: 0}
-    queue = deque([root])
-    while queue:
-        pid = queue.popleft()
-        for child in children.get(pid, ()):
-            if child in depths:
-                # A pid cannot really be its own ancestor; a snapshot torn
-                # mid-read could still say so, and a cycle here would hang.
-                continue
-            depths[child] = depths[pid] + 1
-            queue.append(child)
-    return depths
 
 
 def rank_candidates(

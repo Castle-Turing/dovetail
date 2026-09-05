@@ -15,7 +15,6 @@ from dovetail_show.targeting import (
     LaunchNew,
     OpenIn,
     choose_target,
-    descendant_depths,
     focused_pid,
     rank_candidates,
 )
@@ -87,16 +86,6 @@ class TestFocusedPid:
     def test_a_focused_node_with_no_pid_is_no_focus(self):
         empty_workspace = {"type": "workspace", "focused": True, "nodes": []}
         assert focused_pid(empty_workspace) is None
-
-
-class TestDescendantDepths:
-    def test_counts_distance_from_the_root(self):
-        table = {10: 1, 20: 10, 30: 20, 40: 1}
-        assert descendant_depths(table, 10) == {10: 0, 20: 1, 30: 2}
-
-    def test_a_cycle_in_a_torn_snapshot_terminates(self):
-        table = {10: 20, 20: 10}
-        assert descendant_depths(table, 10) == {10: 0, 20: 1}
 
 
 class TestTheRule:

@@ -240,10 +240,13 @@ binary in `$DOVETAIL_TERMINAL` avoids it.
 
 **Sway is the only compositor step two knows.** That is a real limit,
 not a temporary one: `swaymsg` is the only compositor query implemented.
-It is behind its own seam in the source (`compositor.py`), where a class
-answering three questions — which window has focus, which window belongs
-to a process I just started, make that window float — is the whole of
-what another compositor would have to supply.
+It is behind its own seam in the source
+(`tools/dovetail-seams/src/dovetail_seams/compositor.py`), where one
+class is the whole of what another compositor would have to supply: two
+questions — which window has focus, which window belongs to a process I
+just started — and four instructions, of which `show` uses only "make
+that window float". The other three belong to
+[`docs/scriptorium.md`](scriptorium.md).
 
 **`/proc` is a Linux interface.** Step two needs the process tree, and
 reads it from `/proc`. On a system without one, the rule falls through
@@ -251,15 +254,21 @@ to step three.
 
 **`show` opens files; it does not change them.** Editing *through* a
 live buffer belongs to the co-editing worksessions of M2, which a
-resident enters deliberately. An agent that edits the buffer you happen
-to be looking at, uninvited, is the wrong-channel failure this ecosystem
-exists to avoid.
+resident enters deliberately — see
+[`docs/scriptorium.md`](scriptorium.md). An agent that edits the buffer
+you happen to be looking at, uninvited, is the wrong-channel failure
+this ecosystem exists to avoid.
 
 ## What `nix flake check` proves
 
-Three of the flake's checks belong to this verb, and none of them needs
+Four of the flake's checks bear on this verb, and none of them needs
 hardware or hands:
 
+- **`seams-unit`** — the machinery `dovetail-show` shares with Dovetail's
+  other verbs, which is most of what it does: resolving the terminal and
+  editor slots, the process table, and the compositor's bounded wait for
+  a new window. It lives in `dovetail-seams` rather than in either verb,
+  so that a second verb reuses it rather than copying it.
 - **`show-unit`** — the targeting rule as a pure function. It takes a
   Sway tree as parsed JSON, a process table snapshot, a socket listing
   and a predicate standing in for connect-and-verify, and returns a
@@ -269,7 +278,8 @@ hardware or hands:
   process id has been reused by something that does not answer; a
   focused window with no editor under it; an unreachable compositor; and
   the multiplexer-shaped case above, which asserts the fall-through
-  rather than hoping for it. These run in the package's own check phase.
+  rather than hoping for it. These run in the package's own check phase,
+  alongside the assertions about what `show` does with a launched window.
 - **`show-explicit-socket`** — step one of the rule end to end. A
   headless instance is launched on some *other* file, so that a buffer
   arriving is evidence of the verb rather than of the launch; then
