@@ -1,14 +1,14 @@
 """dovetail-show — put a named file in front of the resident.
 
-The package is split so that the parts a stranger has to replace are
-each behind one seam:
+Only two files here are the verb's own:
 
   targeting.py   the decision rule, pure and testable without a machine
-  processes.py   the local process table, read from /proc
-  compositor.py  the compositor seam — Sway is the only one implemented
-  editor.py      the editor seam — Neovim is the reference provider
-  launch.py      spawning a terminal and floating its window
+  launch.py      what *show* does with a launched window: float it
   cli.py         argument parsing and the order the steps run in
+
+Everything else it needs — the compositor seam, the editor seam, the
+process table, spawning a terminal and confirming it started — is in
+`dovetail_seams`, shared with Dovetail's other verbs.
 """
 
 __all__ = ["__version__"]

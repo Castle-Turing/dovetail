@@ -7,7 +7,11 @@ import sys
 
 import pytest
 
-from dovetail_show.processes import parse_ppid, read_process_table
+from dovetail_seams.processes import (
+    descendant_depths,
+    parse_ppid,
+    read_process_table,
+)
 
 
 class TestParsePpid:
@@ -63,3 +67,13 @@ class TestUnusualProcessNames:
         (proc / "222" / "stat").write_bytes(b"222 (nvim) S 111 222 0\n")
 
         assert read_process_table(str(proc)) == {111: 100, 222: 111}
+
+
+class TestDescendantDepths:
+    def test_counts_distance_from_the_root(self):
+        table = {10: 1, 20: 10, 30: 20, 40: 1}
+        assert descendant_depths(table, 10) == {10: 0, 20: 1, 30: 2}
+
+    def test_a_cycle_in_a_torn_snapshot_terminates(self):
+        table = {10: 20, 20: 10}
+        assert descendant_depths(table, 10) == {10: 0, 20: 1}

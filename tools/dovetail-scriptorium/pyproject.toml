@@ -3,14 +3,14 @@ requires = ["setuptools>=64"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "dovetail-show"
+name = "dovetail-scriptorium"
 version = "0.1.0"
-description = "Put a named file in front of the resident, in the editor she is looking at"
+description = "Build a worksession: a scratch file in an editor tile, a REPL beside it, a socket to co-edit through"
 requires-python = ">=3.10"
 dependencies = ["dovetail-seams"]
 
 [project.scripts]
-dovetail-show = "dovetail_show.cli:main"
+dovetail-scriptorium = "dovetail_scriptorium.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

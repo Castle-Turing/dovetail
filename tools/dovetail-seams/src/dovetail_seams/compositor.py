@@ -1,10 +1,14 @@
 """The compositor seam. Sway is the only compositor implemented.
 
-Three questions are asked of a compositor, and they are the whole of the
-interface: which window has focus, which window belongs to a process we
-just started, and make that window float. A stranger on Hyprland or
-River adds a class beside `Sway` answering those three, and teaches
-`detect()` to return it; nothing outside this file needs to change.
+Six things are asked of a compositor, and they are the whole of the
+interface. Two are questions — which window has focus, which window
+belongs to a process we just started — and four are instructions: float
+this window, focus this window, split this window horizontally so the
+next one opens beside it, and swap these two windows. A stranger on
+Hyprland or River adds a class beside `Sway` answering those six, and
+teaches `detect()` to return it; nothing outside this file needs to
+change, and in particular no verb ever writes a line of Sway command
+syntax.
 
 Not reaching a compositor is never an error here. `$SWAYSOCK` unset or
 `swaymsg` missing means "no focused editor was found", and the targeting
@@ -118,12 +122,18 @@ class Sway:
                 return None
             sleep(min(interval, remaining))
 
-    def float_window(self, con_id: int) -> bool:
-        """Make one container float. True if the compositor said it did."""
+    def _command(self, *argv: str) -> bool:
+        """Issue one command. True if the compositor said it succeeded.
+
+        Never raises: every caller of a compositor instruction treats
+        failure as "the window is where the compositor left it", which
+        is a warning at worst and never a reason to fail an invocation
+        that has already put something on screen.
+        """
 
         try:
             done = subprocess.run(
-                [self._swaymsg, "-r", f"[con_id={con_id}]", "floating", "enable"],
+                [self._swaymsg, "-r", *argv],
                 capture_output=True,
                 text=True,
                 timeout=QUERY_TIMEOUT,
@@ -131,6 +141,41 @@ class Sway:
         except (OSError, subprocess.SubprocessError):
             return False
         return done.returncode == 0
+
+    def float_window(self, con_id: int) -> bool:
+        """Make one container float."""
+
+        return self._command(f"[con_id={con_id}]", "floating", "enable")
+
+    def focus_window(self, con_id: int) -> bool:
+        """Give one container focus."""
+
+        return self._command(f"[con_id={con_id}]", "focus")
+
+    def split_beside(self, con_id: int) -> bool:
+        """Arrange for the next new window to open to the right of this one.
+
+        Sway opens a new window as a sibling of the focused container, in
+        the direction that container's parent is split. So this focuses
+        the container and sets a horizontal split on it: the container is
+        wrapped in a split of its own, and the next window to map becomes
+        its right-hand sibling. Any other windows already on the
+        workspace keep the space they had.
+
+        This is placement by asking the compositor to do what it already
+        does, rather than by moving a window after the fact — there is no
+        `move` command whose result does not depend on where the window
+        happened to land first.
+        """
+
+        return self.focus_window(con_id) and self._command("splith")
+
+    def swap_windows(self, first: int, second: int) -> bool:
+        """Exchange the positions of two containers."""
+
+        return self._command(
+            f"[con_id={first}]", "swap", "container", "with", "con_id", str(second)
+        )
 
 
 def window_for_pids(tree: object, pids: Container[int]) -> int | None:

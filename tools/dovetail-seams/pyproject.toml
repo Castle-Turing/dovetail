@@ -3,14 +3,11 @@ requires = ["setuptools>=64"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "dovetail-show"
+name = "dovetail-seams"
 version = "0.1.0"
-description = "Put a named file in front of the resident, in the editor she is looking at"
+description = "The compositor, editor, process and launch seams Dovetail's verbs share"
 requires-python = ">=3.10"
-dependencies = ["dovetail-seams"]
-
-[project.scripts]
-dovetail-show = "dovetail_show.cli:main"
+dependencies = []
 
 [tool.setuptools.packages.find]
 where = ["src"]

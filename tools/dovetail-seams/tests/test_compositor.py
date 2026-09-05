@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dovetail_show.compositor import Sway, detect, window_for_pids
+from dovetail_seams.compositor import Sway, detect, window_for_pids
 
 
 class TestDetect:

@@ -1,7 +1,7 @@
 """This is how the Neovim provider implements the verbs.
 
-Every line of this file is Neovim-specific, and it is the only file in
-the tool that is. Nothing else knows that the editor speaks msgpack-RPC,
+Every line of this file is Neovim-specific, and it is the only file
+in Dovetail's tooling that is. Nothing else knows that the editor speaks msgpack-RPC,
 that its sockets are called `nvim-<pid>.sock`, or that a line number is
 spelled `+N` on its command line. The vision's fourth starting position
 makes the editor a slot rather than a hardcode, and M3 extracts the
@@ -10,7 +10,7 @@ great deal easier if the provider-shaped code already sits behind one
 seam.
 
 The client is plain unwrapped Neovim driven over `--server`, exactly as
-`nix/checks/headless-socket.nix` drives it, so the tool does not depend
+`nix/checks/headless-socket.nix` drives it, so a verb does not depend
 on the configuration whose files it is opening.
 """
 
@@ -19,19 +19,28 @@ from __future__ import annotations
 import os
 import re
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path
 
 from .defaults import NVIM_CLIENT
-from .errors import ShowError
-from .targeting import Instance
+from .errors import DovetailError
+
+_SOCKET_NAME = re.compile(r"^nvim-(\d+)\.sock$")
+
+
+@dataclass(frozen=True)
+class Instance:
+    """A live editor instance: where to reach it, and what pid it runs as."""
+
+    socket: str
+    pid: int
+
 
 # How long a single RPC call may take before the instance is presumed
 # dead. Generous for a local Unix socket, where an answer is a
 # round-trip on tmpfs; short enough that ranking through a directory of
 # stale sockets stays interactive.
 RPC_TIMEOUT = 5.0
-
-_SOCKET_NAME = re.compile(r"^nvim-(\d+)\.sock$")
 
 
 def socket_directory(environ: os._Environ | dict = os.environ) -> Path | None:
@@ -100,9 +109,9 @@ def open_file(socket: str, path: Path, line: int | None) -> None:
     try:
         done = _client("--server", socket, "--remote", str(path))
     except (OSError, subprocess.SubprocessError) as exc:
-        raise ShowError(f"could not open {path} in the editor at {socket}: {exc}")
+        raise DovetailError(f"could not open {path} in the editor at {socket}: {exc}")
     if done.returncode != 0:
-        raise ShowError(
+        raise DovetailError(
             f"could not open {path} in the editor at {socket}: "
             f"{done.stderr.strip() or 'the editor reported an error'}"
         )
@@ -113,9 +122,9 @@ def open_file(socket: str, path: Path, line: int | None) -> None:
     try:
         done = _client("--server", socket, "--remote-expr", f"cursor({line}, 1)")
     except (OSError, subprocess.SubprocessError) as exc:
-        raise ShowError(f"opened {path}, but could not move to line {line}: {exc}")
+        raise DovetailError(f"opened {path}, but could not move to line {line}: {exc}")
     if done.returncode != 0:
-        raise ShowError(
+        raise DovetailError(
             f"opened {path}, but could not move to line {line}: "
             f"{done.stderr.strip() or 'the editor reported an error'}"
         )
