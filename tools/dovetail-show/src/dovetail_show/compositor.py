@@ -52,15 +52,20 @@ class Sway:
     def __init__(self, swaymsg: str) -> None:
         self._swaymsg = swaymsg
 
-    def get_tree(self) -> object | None:
-        """The window tree as parsed JSON, or None if it cannot be had."""
+    def get_tree(self, timeout: float = QUERY_TIMEOUT) -> object | None:
+        """The window tree as parsed JSON, or None if it cannot be had.
+
+        `timeout` is settable so that a caller working to a deadline of
+        its own can hand down what is left of it rather than granting a
+        fresh allowance to every query.
+        """
 
         try:
             done = subprocess.run(
                 [self._swaymsg, "-t", "get_tree", "-r"],
                 capture_output=True,
                 text=True,
-                timeout=QUERY_TIMEOUT,
+                timeout=timeout,
             )
         except (OSError, subprocess.SubprocessError):
             return None
@@ -89,16 +94,29 @@ class Sway:
 
         None means the window never appeared within `timeout`, which
         costs a window in the wrong place and nothing else.
+
+        `timeout` bounds the whole wait, not each attempt. Every query
+        and every sleep is clamped to what is left of it, because a
+        query that hangs is exactly the case where a per-attempt
+        allowance would let this run to twice its documented budget
+        while the caller waits for a window it was promised in five
+        seconds.
         """
 
         deadline = monotonic() + timeout
         while True:
-            con_id = window_for_pids(self.get_tree(), pids())
+            remaining = deadline - monotonic()
+            if remaining <= 0:
+                return None
+            con_id = window_for_pids(
+                self.get_tree(timeout=min(QUERY_TIMEOUT, remaining)), pids()
+            )
             if con_id is not None:
                 return con_id
-            if monotonic() >= deadline:
+            remaining = deadline - monotonic()
+            if remaining <= 0:
                 return None
-            sleep(interval)
+            sleep(min(interval, remaining))
 
     def float_window(self, con_id: int) -> bool:
         """Make one container float. True if the compositor said it did."""

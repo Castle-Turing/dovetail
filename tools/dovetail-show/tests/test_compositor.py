@@ -66,10 +66,18 @@ class TestWaitForWindow:
     Asking again has no such gap.
     """
 
-    def _sway(self, trees):
+    def _sway(self, trees, clock=None):
         sway = Sway("swaymsg")
         remaining = list(trees)
-        sway.get_tree = lambda: remaining.pop(0) if remaining else None
+        self.queries = []
+
+        def get_tree(timeout=None):
+            self.queries.append(timeout)
+            if clock is not None:
+                clock.advance(clock.per_query)
+            return remaining.pop(0) if remaining else None
+
+        sway.get_tree = get_tree
         return sway
 
     def test_a_window_already_there_is_returned_without_sleeping(self):
@@ -77,7 +85,7 @@ class TestWaitForWindow:
         slept = []
         assert (
             sway.wait_for_window(
-                lambda: {1000}, 5.0, sleep=slept.append, monotonic=lambda: 0.0
+                lambda: {1000}, 5.0, sleep=slept.append, monotonic=_Clock().read
             )
             == 42
         )
@@ -85,13 +93,9 @@ class TestWaitForWindow:
 
     def test_a_window_that_appears_later_is_waited_for(self):
         sway = self._sway([_tree(), _tree(), _tree({"id": 42, "pid": 1000})])
-        clock = iter([0.0, 0.1, 0.2, 0.3, 0.4])
         assert (
             sway.wait_for_window(
-                lambda: {1000},
-                5.0,
-                sleep=lambda _: None,
-                monotonic=lambda: next(clock),
+                lambda: {1000}, 5.0, sleep=lambda _: None, monotonic=_Clock().read
             )
             == 42
         )
@@ -101,26 +105,52 @@ class TestWaitForWindow:
         # set captured once would never match it.
         sway = self._sway([_tree({"id": 42, "pid": 2000})] * 3)
         seen = iter([{1000}, {1000, 2000}])
-        clock = iter([0.0, 0.1, 0.2, 0.3])
         assert (
             sway.wait_for_window(
-                lambda: next(seen),
-                5.0,
-                sleep=lambda _: None,
-                monotonic=lambda: next(clock),
+                lambda: next(seen), 5.0, sleep=lambda _: None, monotonic=_Clock().read
             )
             == 42
         )
 
     def test_a_window_that_never_appears_times_out(self):
-        sway = self._sway([_tree()] * 10)
-        clock = iter([0.0, 6.0])
+        sway = self._sway([_tree()] * 500)
         assert (
             sway.wait_for_window(
-                lambda: {1000},
-                5.0,
-                sleep=lambda _: None,
-                monotonic=lambda: next(clock),
+                lambda: {1000}, 5.0, sleep=lambda _: None, monotonic=_Clock().read
             )
             is None
         )
+
+    def test_a_query_may_not_outlive_the_deadline(self):
+        # A query that hangs near the deadline would otherwise get a
+        # fresh five-second allowance of its own, and the whole wait
+        # would take twice what the caller was promised.
+        clock = _Clock(step=0.0)
+        clock.per_query = 2.0
+        sway = self._sway([_tree()] * 500, clock=clock)
+        assert (
+            sway.wait_for_window(
+                lambda: {1000}, 5.0, sleep=lambda _: None, monotonic=clock.read
+            )
+            is None
+        )
+        assert max(self.queries) <= 5.0
+        # Third query starts at t=4s with one second of budget left.
+        assert self.queries[2] == 1.0
+        assert clock.now <= 6.0
+
+
+class _Clock:
+    """A clock that advances on every reading, so no test really waits."""
+
+    def __init__(self, step=0.1):
+        self.now = 0.0
+        self.step = step
+        self.per_query = 0.0
+
+    def read(self):
+        self.now += self.step
+        return self.now
+
+    def advance(self, seconds):
+        self.now += seconds

@@ -50,6 +50,14 @@ over a tree it is handed, so every shape a real tree takes — nested
 under workspaces, already floating, no windows at all, no tree because
 the compositor could not be reached — is testable with no compositor.
 
+The five-second budget bounds the whole wait rather than each attempt.
+That distinction is not pedantry: a `get_tree` that hangs would
+otherwise receive a fresh query timeout of its own, and a wait that
+began just under the deadline could run to roughly twice the documented
+budget while the resident waits for a window they were promised in five
+seconds. Each query and each sleep is clamped to what is left. (Found by
+the gate on this pull request.)
+
 **Considered and rejected: speaking Sway's IPC protocol directly.** A
 subscription made over `$SWAYSOCK` does get a real reply, and would
 allow a genuine acknowledgement. It means implementing the binary
