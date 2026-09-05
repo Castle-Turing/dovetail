@@ -51,7 +51,9 @@ def launch(
         # whether or not `--no-float` was given, because it is the only
         # thing that distinguishes "the terminal died" from "the window
         # just hasn't mapped yet". `--no-float` skips only the
-        # `floating enable` call once a window has been found.
+        # `floating enable` call once a window has been found. The seam
+        # cuts the wait short once the child has exited — the daemonizing
+        # terminal case task 0007's review round settled.
         con_id = seams.wait_for_window(compositor, child)
         if con_id is None:
             seams.raise_if_terminal_died(child, argv, _NOT_SHOWN)

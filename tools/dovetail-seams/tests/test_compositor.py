@@ -139,6 +139,43 @@ class TestWaitForWindow:
         assert self.queries[2] == 1.0
         assert clock.now <= 6.0
 
+    def test_a_dead_process_ends_the_wait_without_the_full_timeout(self):
+        # A process that has already exited cannot go on to map a window
+        # under `pids()`: a terminal that hands off to an already-running
+        # server exits 0 right away, and without this the wait ran to the
+        # full timeout for no reason, since the window it will never see
+        # belongs to a process outside this pid tree.
+        sway = self._sway([_tree()] * 500)
+        slept = []
+        assert (
+            sway.wait_for_window(
+                lambda: {1000},
+                5.0,
+                sleep=slept.append,
+                monotonic=_Clock().read,
+                alive=lambda: False,
+            )
+            is None
+        )
+        # One query is still made — the terminal may have mapped the
+        # window in the same instant it exited — but the wait ends there
+        # rather than sleeping through the rest of the budget.
+        assert len(self.queries) == 1
+        assert slept == []
+
+    def test_a_live_process_is_still_waited_for(self):
+        sway = self._sway([_tree(), _tree(), _tree({"id": 42, "pid": 1000})])
+        assert (
+            sway.wait_for_window(
+                lambda: {1000},
+                5.0,
+                sleep=lambda _: None,
+                monotonic=_Clock().read,
+                alive=lambda: True,
+            )
+            == 42
+        )
+
 
 class _Clock:
     """A clock that advances on every reading, so no test really waits."""

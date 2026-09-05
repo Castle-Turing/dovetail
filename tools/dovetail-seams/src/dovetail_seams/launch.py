@@ -169,9 +169,20 @@ def wait_for_window(
     child: subprocess.Popen,
     timeout: float = compositor_module.NEW_WINDOW_TIMEOUT,
 ) -> int | None:
-    """The container id of the window `child` produced, or None."""
+    """The container id of the window `child` produced, or None.
 
-    return compositor.wait_for_window(lambda: spawned_pids(child.pid), timeout)
+    The wait ends early once `child` has exited: a terminal that hands
+    off to an already-running server exits 0 right away, and without
+    the cutoff the wait would burn its whole budget on a launch that
+    already succeeded, because the window it should have found belongs
+    to a process outside this pid tree.
+    """
+
+    return compositor.wait_for_window(
+        lambda: spawned_pids(child.pid),
+        timeout,
+        alive=lambda: child.poll() is None,
+    )
 
 
 def raise_if_terminal_died(

@@ -45,7 +45,7 @@ class TestTheEditorGetsAWindowNotThePipes:
             instantly keeps it that way without sleeping in real time.
             """
 
-            def wait_for_window(self, pids, timeout):
+            def wait_for_window(self, pids, timeout, **kwargs):
                 return 1
 
             def float_window(self, con_id):
@@ -198,3 +198,37 @@ class TestNoFloatStillWaitsForWindow:
             environ={"DOVETAIL_TERMINAL": "foot -e"},
         )
         assert "no window was seen" in capsys.readouterr().err
+
+    def test_a_daemonizing_terminal_does_not_run_the_wait_to_its_budget(
+        self, monkeypatch, tmp_path
+    ):
+        # footclient et al. exit 0 immediately, handing the real window
+        # to an already-running server that is no descendant of the
+        # spawned child. The window wait cannot ever see that window, so
+        # it must stop as soon as the child is confirmed dead rather than
+        # running the compositor's whole timeout for a launch that
+        # already succeeded.
+        class CleanlyExitedChild:
+            pid = 4321
+
+            def poll(self):
+                return 0
+
+        monkeypatch.setattr(
+            seams_launch.subprocess, "Popen", lambda argv, **kw: CleanlyExitedChild()
+        )
+
+        class RecordingCompositor:
+            def wait_for_window(self, pids, timeout, **kwargs):
+                assert "alive" in kwargs
+                assert kwargs["alive"]() is False
+                return None
+
+        launch_module.launch(
+            tmp_path / "note.md",
+            None,
+            terminal="foot -e",
+            float_window=False,
+            compositor=RecordingCompositor(),
+            environ={"DOVETAIL_TERMINAL": "foot -e"},
+        )
