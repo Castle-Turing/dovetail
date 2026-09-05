@@ -31,6 +31,19 @@ SOCKET_TIMEOUT = 10.0
 
 _SOCKET_POLL_INTERVAL = 0.1
 
+# How long to watch a spawned terminal for a quick death when there is no
+# compositor to ask about a window at all. There is no window tree to
+# poll on this path, only the child's own exit status, so this is a much
+# shorter budget than the float step's window wait: it exists to catch a
+# terminal that fails immediately — a broken $DOVETAIL_TERMINAL, bad
+# arguments — not to prove that a window will eventually appear. A
+# terminal still alive when the budget expires is presumed fine, the same
+# way a terminal that daemonizes and hands off to an already-running
+# server is presumed fine on the float path.
+NO_COMPOSITOR_LIVENESS_BUDGET = 2.0
+
+_LIVENESS_POLL_INTERVAL = 0.05
+
 _NO_TERMINAL = """no terminal is configured, and Dovetail will not guess one
 
 Set $DOVETAIL_TERMINAL (or $TERMINAL) to the command that runs a program
@@ -121,15 +134,30 @@ def launch(
     except OSError as exc:
         raise ShowError(f"could not run the terminal command {argv[0]!r}: {exc}")
 
-    if float_window and compositor is not None:
+    if compositor is not None:
+        # The wait is the launch confirmation, not the floating: it runs
+        # whether or not `--no-float` was given, because it is the only
+        # thing that distinguishes "the terminal died" from "the window
+        # just hasn't mapped yet". `--no-float` skips only the
+        # `floating enable` call once a window has been found. `alive`
+        # cuts the wait short once the child has exited: a terminal that
+        # hands off to an already-running server exits 0 right away, and
+        # without this the wait would burn its whole budget on a launch
+        # that already succeeded, purely because the window it should
+        # have found belongs to a process this pid tree will never reach.
         con_id = compositor.wait_for_window(
             lambda: _spawned_pids(child.pid),
             compositor_module.NEW_WINDOW_TIMEOUT,
+            alive=lambda: child.poll() is None,
         )
         if con_id is None:
-            _report_no_window(child, argv)
-        elif not compositor.float_window(con_id):
+            _report_no_window(child, argv, float_window=float_window)
+        elif float_window and not compositor.float_window(con_id):
             _report_unplaced()
+    else:
+        # No tree to poll at all, so the child's own liveness is the only
+        # signal available.
+        _watch_liveness(child, argv)
 
     if not want_socket:
         return None
@@ -146,7 +174,9 @@ def _spawned_pids(pid: int) -> set[int]:
     return {pid} | set(descendant_depths(processes.read_process_table(), pid))
 
 
-def _report_no_window(child: subprocess.Popen, argv: list[str]) -> None:
+def _report_no_window(
+    child: subprocess.Popen, argv: list[str], *, float_window: bool
+) -> None:
     """Say what happened when no window ever appeared.
 
     A terminal that exits instead of mapping a window is the case worth
@@ -161,7 +191,10 @@ def _report_no_window(child: subprocess.Popen, argv: list[str]) -> None:
             f"the terminal command {argv[0]!r} exited with status {status} "
             f"without opening a window; the file was not shown"
         )
-    _report_unplaced()
+    if float_window:
+        _report_unplaced()
+    else:
+        _report_window_not_seen()
 
 
 def _report_unplaced() -> None:
@@ -173,6 +206,54 @@ def _report_unplaced() -> None:
         "it has been left where the compositor put it",
         file=sys.stderr,
     )
+
+
+def _report_window_not_seen() -> None:
+    # --no-float never asked for the window to be floated, so the file is
+    # exactly where the caller told the tool to leave it; this is worth a
+    # word on stderr only because the window taking this long is unusual.
+    print(
+        "dovetail-show: no window was seen for the new terminal within "
+        f"{compositor_module.NEW_WINDOW_TIMEOUT:.0f} seconds",
+        file=sys.stderr,
+    )
+
+
+def _watch_liveness(
+    child: subprocess.Popen,
+    argv: list[str],
+    budget: float = NO_COMPOSITOR_LIVENESS_BUDGET,
+    *,
+    interval: float = _LIVENESS_POLL_INTERVAL,
+    monotonic=time.monotonic,
+    sleep=time.sleep,
+) -> None:
+    """Fail loudly if `child` dies within `budget`; otherwise say nothing.
+
+    There is no compositor to ask about a window, so the child process is
+    the only signal available. A clean exit (status 0) is not treated as
+    a failure here, for the same reason `_report_no_window` does not
+    treat one as a failure: a terminal that hands off to an
+    already-running server and exits 0 immediately is a documented,
+    harmless case, indistinguishable from this vantage point from a
+    terminal that quietly failed without setting an exit status.
+    """
+
+    deadline = monotonic() + budget
+    while True:
+        status = child.poll()
+        if status is not None:
+            if status != 0:
+                raise ShowError(
+                    f"the terminal command {argv[0]!r} exited with status "
+                    f"{status} within {budget:g}s of being started; the "
+                    "file was not shown"
+                )
+            return
+        remaining = deadline - monotonic()
+        if remaining <= 0:
+            return
+        sleep(min(interval, remaining))
 
 
 def _await_socket(

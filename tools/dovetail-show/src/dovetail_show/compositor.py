@@ -84,6 +84,7 @@ class Sway:
         interval: float = POLL_INTERVAL,
         monotonic=time.monotonic,
         sleep=time.sleep,
+        alive: Callable[[], bool] | None = None,
     ) -> int | None:
         """The container id of a window owned by one of `pids()`, or None.
 
@@ -101,6 +102,13 @@ class Sway:
         allowance would let this run to twice its documented budget
         while the caller waits for a window it was promised in five
         seconds.
+
+        `alive`, when given, ends the wait the moment it reports false,
+        rather than at the full timeout. A spawned process that has
+        already exited cannot go on to map a window under `pids()` — a
+        dead process is not a parent descendants get discovered through
+        — so once the caller confirms it is gone, more polling only
+        delays the answer, it cannot change it.
         """
 
         deadline = monotonic() + timeout
@@ -113,6 +121,8 @@ class Sway:
             )
             if con_id is not None:
                 return con_id
+            if alive is not None and not alive():
+                return None
             remaining = deadline - monotonic()
             if remaining <= 0:
                 return None
