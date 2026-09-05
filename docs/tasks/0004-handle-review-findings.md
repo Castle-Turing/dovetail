@@ -48,7 +48,7 @@ repository regardless of what a vendor's hosted reviewer supports, and
 if the gate ever learns to post inline review comments, this workflow
 should follow it there.
 
-## Three rules in the file that must not be tidied away
+## Four rules in the file that must not be tidied away
 
 **Marker-matching, not prose-matching.** The trigger tests for the
 marker rather than the comment's heading, so the gate's wording can
@@ -89,11 +89,30 @@ spend the account's tokens on a write-enabled agent. The workflow
 queries the collaborator permission API and requires write, maintain or
 admin.
 
-The second and third of those came from the gate's own review of this
-workflow, on this pull request — and the concurrency rule took two
-rounds to get right, each round trading one hazard for a subtler one.
-The automation being installed here caught the defects in its own
-installation.
+**The receipt is verified against the forge, not against the model's
+account of itself.** The workflow reads the pull request's comment count
+before the agent runs and again afterwards, and fails the job if it did
+not grow. Without that step a run which posted nothing at all finishes
+green: the dispositions comment is required by the prompt, and a prompt
+is not a guarantee. The sibling repository has the precedent — a model
+there reported posting receipts it had never attempted, and because no
+call was made, no call failed and nothing caught it.
+
+The check is deliberately weak in one direction and the file says so:
+any comment by anyone during the run satisfies it. It catches "nothing
+was posted", which is the failure that has actually occurred, and it
+does not authenticate the author or excuse anyone from reading the
+receipt. The other half of the sibling's original protection — a `gh`
+shim logging calls that were attempted and rejected — is not in the
+template yet, and remains a real gap rather than a decision.
+
+The second, third and fourth of those came from the gate's own review —
+the concurrency rule and the permission check from this pull request,
+each concurrency round trading one hazard for a subtler one, and the
+receipt check from the review of the sibling repository's adoption of
+the same template. The automation keeps catching the defects in its own
+installation, which is the strongest evidence so far that it is worth
+installing.
 
 ## Prerequisites this task cannot satisfy
 
@@ -131,7 +150,9 @@ not re-run, naming the unchecked commit.
 Agent-testable, no human involved:
 
 - The workflow file is valid YAML and parses as a GitHub Actions
-  workflow. (Done: three steps, parsed with `yq`.)
+  workflow. (Done: five steps, parsed with PyYAML — the permission
+  check, the checkout, the comment count before, the agent, and the
+  receipt confirmation after.)
 - It is byte-identical to the profile's template. This cannot be a check
   in this repository — the profile is the operator's own and is not
   public — so it is verified by whoever holds the profile at the moment
