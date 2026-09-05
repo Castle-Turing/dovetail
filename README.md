@@ -21,19 +21,29 @@ prose-friendly markdown defaults:
 nix run github:Castle-Turing/dovetail
 ```
 
-and the first verb, which puts a named file in front of you — in the
-editor you are looking at, or in a new floating one if you are not:
+the first verb, which puts a named file in front of you — in the editor
+you are looking at, or in a new floating one if you are not:
 
 ```
 nix run github:Castle-Turing/dovetail#dovetail-show -- notes/today.md
 ```
 
+and the second, which builds a room for working through an idea: a
+durable scratch file in an editor tile, a REPL beside it, and the
+editor's socket printed so an agent can co-edit with you.
+
+```
+nix run github:Castle-Turing/dovetail#dovetail-scriptorium -- parser-rewrite
+```
+
 Read [`docs/module.md`](docs/module.md) for what the module guarantees,
 the socket path scheme, and the overlay point where your own keymaps and
-colourscheme go, and [`docs/show.md`](docs/show.md) for the verb's
-targeting rule, the terminal you have to name, and its limitations. The
-rest of the roadmap — the scriptorium, the editor contract — is still
-design record; start with [`docs/vision.md`](docs/vision.md).
+colourscheme go; [`docs/show.md`](docs/show.md) for the show verb's
+targeting rule, the terminal you have to name, and its limitations; and
+[`docs/scriptorium.md`](docs/scriptorium.md) for the scratch file
+convention, the layout rule and the co-editing recipe. The rest of the
+roadmap — the editor contract — is still design record; start with
+[`docs/vision.md`](docs/vision.md).
 
 ## Relation to Castle Turing
 
@@ -50,11 +60,14 @@ should be able to use Dovetail's verbs on their own. Design Principle
 flake.nix        Inputs, the exported nixvim module, the runnable
                  packages, and the checks.
 nix/module.nix   The Dovetail nixvim module itself.
-nix/packages/    Nix expressions for the verbs.
+nix/packages/    Nix expressions for the verbs and the seams they share.
 nix/checks/      What `nix flake check` runs.
-tools/           The verbs themselves, one directory each.
+tools/           The verbs themselves, one directory each, over the
+                 shared seams in tools/dovetail-seams.
 docs/module.md   Reference documentation for the module.
 docs/show.md     Reference documentation for the `show` verb.
+docs/scriptorium.md
+                 Reference documentation for the `scriptorium` verb.
 docs/vision.md   The founding context. Read it first.
 docs/backlog/    Deferred work, one plain-text file per item.
 docs/tasks/      Numbered briefs — the spec and reasoning for each

@@ -207,10 +207,34 @@ Resolved answers are recorded here or in the brief that settles them.
   rejected as "oldest instance wins" in disguise — the mtime is set when
   the server binds — and honest recency would need new module state that
   nothing yet requires. The reference documentation is `docs/show.md`.
-- Scratch file convention: naming, the private-layer slot for its
-  location, and the promotion path from scratch to design doc or task.
+- ~~Scratch file convention~~ — **settled by task 0006** (`docs/tasks/`),
+  and implemented in `dovetail-scriptorium`: the file is
+  `<YYYY-MM-DD>-<topic>.md`, the date leading so a listing sorts the way
+  a resident looks for these, and the topic a required slug that is
+  refused rather than repaired when it is not one. The private-layer
+  slot is `$DOVETAIL_SCRATCH_DIR`, and `--scratch-dir` overrides it for
+  one invocation. This document assumed the location would be named by
+  the private layer and nothing else; implementation added a default
+  beneath it — `$XDG_DATA_HOME/dovetail/scratch`, falling back to
+  `~/.local/share/dovetail/scratch` — so that a resident who has
+  configured nothing still gets a room from one word. That is a
+  refinement of the position rather than a reversal: the slot is still
+  the mechanism, and the default is what the slot means when it is
+  empty. The state home was rejected for carrying logs-and-history
+  semantics where these are durable documents. Promotion is a documented
+  `git mv` and deliberately not a verb: it is a judgment about whether
+  the thinking is finished, made in a repository whose conventions
+  Dovetail knows nothing about. The reference documentation is
+  `docs/scriptorium.md`.
 - Buffer-change reading in M2: `nvim_buf_attach` events versus
   polling — try events first; this decides the first capability flag.
+  Still open after task 0006, and now with a reason rather than an
+  absence: `--remote-expr` connects, evaluates and disconnects, so
+  subscribing needs a client process that stays connected, with its own
+  lifecycle and failure modes. That is a shipped artifact with no
+  consumer until a real co-editing session wants one, so the recipe in
+  `docs/scriptorium.md` polls and says what it costs. The position —
+  events first — stands; what is deferred is building the bridge.
 - A headless, agent-owned editor instance — pure text-manipulation
   server, separate from anything visible — may be useful for on-disk
   edits that still want editor-grade manipulation. Deferred unless M1
