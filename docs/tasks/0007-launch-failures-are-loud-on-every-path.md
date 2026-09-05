@@ -95,3 +95,17 @@ that the sandbox can reach.
   Wayland session makes it exactly the case this task added detection
   for — unlike the compositor-reachable paths, this one needed no
   compositor to check.
+- **The compositor window wait ends as soon as the spawned process is
+  confirmed dead, on every path, not just at its five-second timeout.**
+  Caught by cross-vendor review on the pull request: making the wait
+  unconditional (above) means a terminal that daemonizes and hands off
+  to an already-running server — the same documented, harmless case the
+  no-compositor liveness watch already treats as fine — now ran the
+  *compositor* wait to its full budget too, on `--no-float`, where
+  before this task that combination skipped the wait entirely. A dead
+  process cannot go on to map a window under the pids the wait is
+  matching against, so `Sway.wait_for_window` takes an optional `alive`
+  predicate and returns as soon as it reports false, rather than sleeping
+  out the rest of the timeout first. This also tightens the pre-existing
+  floating-path behavior for the same daemonizing case, previously
+  documented as timing out.

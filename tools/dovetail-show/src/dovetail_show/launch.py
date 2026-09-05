@@ -139,10 +139,16 @@ def launch(
         # whether or not `--no-float` was given, because it is the only
         # thing that distinguishes "the terminal died" from "the window
         # just hasn't mapped yet". `--no-float` skips only the
-        # `floating enable` call once a window has been found.
+        # `floating enable` call once a window has been found. `alive`
+        # cuts the wait short once the child has exited: a terminal that
+        # hands off to an already-running server exits 0 right away, and
+        # without this the wait would burn its whole budget on a launch
+        # that already succeeded, purely because the window it should
+        # have found belongs to a process this pid tree will never reach.
         con_id = compositor.wait_for_window(
             lambda: _spawned_pids(child.pid),
             compositor_module.NEW_WINDOW_TIMEOUT,
+            alive=lambda: child.poll() is None,
         )
         if con_id is None:
             _report_no_window(child, argv, float_window=float_window)

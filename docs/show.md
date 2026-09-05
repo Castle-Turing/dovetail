@@ -233,9 +233,10 @@ any descendant of it, so a terminal that forks or re-execs before
 mapping is still found. A client that hands the request to an
 *already-running server*, though — `footclient`, `kitty @ launch`,
 `wezterm connect` — produces a window belonging to a process that is no
-relation, so the match times out and the window is left tiled. The file
-still opens. Naming the standalone binary in `$DOVETAIL_TERMINAL` avoids
-it.
+relation, and the command itself exits right away, so the wait gives up
+as soon as that exit is seen rather than running to the full timeout;
+the window is left tiled. The file still opens. Naming the standalone
+binary in `$DOVETAIL_TERMINAL` avoids it.
 
 **Sway is the only compositor step two knows.** That is a real limit,
 not a temporary one: `swaymsg` is the only compositor query implemented.
