@@ -1,3 +1,6 @@
 .claude/worktrees/
 result
 result-*
+
+# Python bytecode caches, from running the tools tests out of the tree.
+__pycache__/

@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dovetail-show"
+version = "0.1.0"
+description = "Put a named file in front of the resident, in the editor she is looking at"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+dovetail-show = "dovetail_show.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

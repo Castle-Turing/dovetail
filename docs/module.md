@@ -70,8 +70,9 @@ by then belong to something else entirely. The rule for a consumer is
 connect-and-verify, never trust-the-listing: open the socket, ask the
 instance for something, and treat a failure to answer as "this entry is
 rubbish, ignore it". Deciding *which* live instance is the current one
-when several answer is a separate question, deliberately left open until
-something needs the answer.
+when several answer is a separate question, settled by the `show` verb
+and documented in [`docs/show.md`](show.md): the innermost instance
+running inside the focused window, unless the caller named one outright.
 
 Two globals report the outcome, and the module writes nothing to stderr
 at startup:
@@ -201,7 +202,9 @@ NixOS or nix-darwin, import it inside the `programs.nixvim` namespace:
 
 ## What `nix flake check` proves
 
-Three checks, all runnable by anyone with no hardware and no hands:
+Three of the flake's checks belong to the module, and all three are
+runnable by anyone with no hardware and no hands. (The other two
+belong to the `show` verb; see [`docs/show.md`](show.md).)
 
 - **`config`** — nixvim's own smoke test. The configuration evaluates
   with no warnings and no failed assertions, and the resulting `nvim`

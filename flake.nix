@@ -68,12 +68,22 @@
       };
 
       # A runnable editor, so a stranger can `nix run github:...#dovetail`
-      # without adopting any module system.
+      # without adopting any module system — and the verbs that drive it.
+      #
+      # `default` stays the editor: `nix run github:Castle-Turing/dovetail`
+      # is a documented entry point in `docs/module.md` and keeps meaning
+      # what that document says it means. Each verb is its own executable
+      # rather than a subcommand of `dovetail`, because `dovetail` already
+      # names the editor and a word doing two jobs is a defect.
       packages = forAllSystems (
-        { system, ... }:
+        { system, pkgs }:
         rec {
           dovetail = (evalDovetail { inherit system; }).config.build.package;
           default = dovetail;
+
+          dovetail-show = pkgs.callPackage ./nix/packages/dovetail-show.nix {
+            dovetail-nvim = dovetail;
+          };
         }
       );
 
@@ -97,6 +107,19 @@
               inherit system;
               modules = [ ./nix/checks/example-private-layer.nix ];
             }).config.build.test;
+
+          # The show verb's unit tests over the targeting rule, which run
+          # in the package's own check phase — so this check is the
+          # package, and a rule that misranks instances fails the build.
+          show-unit = self.packages.${system}.dovetail-show;
+
+          # The show verb end to end, for the path a sandbox can reach:
+          # the caller names a socket, and the file lands in that
+          # instance. The other two steps of the rule need a compositor.
+          show-explicit-socket = pkgs.callPackage ./nix/checks/show-explicit-socket.nix {
+            dovetail-nvim = self.packages.${system}.dovetail;
+            dovetail-show = self.packages.${system}.dovetail-show;
+          };
         }
       );
 
