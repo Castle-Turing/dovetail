@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import subprocess
+
 import pytest
 
 from dovetail_show.defaults import DEFAULT_EDITOR
 from dovetail_show.errors import ShowError
+from dovetail_show import launch as launch_module
 from dovetail_show.launch import editor_command, terminal_argv
 
 
@@ -74,3 +77,79 @@ class TestMalformedTerminalQuoting:
         with pytest.raises(ShowError) as caught:
             terminal_argv('foot -e "unclosed', {})
         assert "--terminal" in str(caught.value)
+
+
+class TestTheEditorGetsAWindowNotThePipes:
+    """A launched terminal must not inherit the caller's stdio.
+
+    Measured on a real desktop before this was fixed: a caller that read
+    the tool's output blocked until the editor window was closed, because
+    the terminal held the write end of the pipe; and when the reader gave
+    up first, the editor died with it. The primary consumer is an agent
+    session capturing output, so both failures are the normal case rather
+    than the exotic one.
+    """
+
+    def _spawn(self, monkeypatch, tmp_path):
+        recorded = {}
+
+        class FakeChild:
+            pid = 4321
+
+            def poll(self):
+                return None
+
+        def fake_popen(argv, **kwargs):
+            recorded["argv"] = argv
+            recorded["kwargs"] = kwargs
+            return FakeChild()
+
+        monkeypatch.setattr(launch_module.subprocess, "Popen", fake_popen)
+        launch_module.launch(
+            tmp_path / "note.md",
+            None,
+            terminal="foot -e",
+            float_window=False,
+            environ={"DOVETAIL_TERMINAL": "foot -e"},
+        )
+        return recorded
+
+    def test_stdio_goes_to_devnull(self, monkeypatch, tmp_path):
+        recorded = self._spawn(monkeypatch, tmp_path)
+        for stream in ("stdin", "stdout", "stderr"):
+            assert recorded["kwargs"][stream] == subprocess.DEVNULL
+
+    def test_it_gets_its_own_session(self, monkeypatch, tmp_path):
+        recorded = self._spawn(monkeypatch, tmp_path)
+        assert recorded["kwargs"]["start_new_session"] is True
+
+
+class TestATerminalThatNeverOpensAWindow:
+    def test_a_terminal_that_exits_is_an_error_not_a_placement_note(
+        self, monkeypatch, tmp_path
+    ):
+        # Nothing opened at all. Reporting only "could not float" would
+        # describe a file the resident cannot see as a cosmetic problem.
+        class DeadChild:
+            pid = 4321
+
+            def poll(self):
+                return 2
+
+        monkeypatch.setattr(
+            launch_module.subprocess, "Popen", lambda argv, **kw: DeadChild()
+        )
+
+        class NoWindows:
+            def wait_for_window(self, pids, timeout, **kwargs):
+                return None
+
+        with pytest.raises(ShowError) as caught:
+            launch_module.launch(
+                tmp_path / "note.md",
+                None,
+                terminal="foot -e",
+                compositor=NoWindows(),
+                environ={"DOVETAIL_TERMINAL": "foot -e"},
+            )
+        assert "status 2" in str(caught.value)

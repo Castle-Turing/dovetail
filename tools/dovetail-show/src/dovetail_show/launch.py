@@ -104,45 +104,75 @@ def launch(
         editor_command(environ), path, line
     )
 
-    watch = None
+    # The editor gets a window, not the caller's pipes. Inheriting them
+    # makes this tool unusable from anything that reads its output: the
+    # reader blocks until the window is closed, because the terminal is
+    # still holding the write end, and a reader that gives up first can
+    # kill the editor. A new session on top of that keeps the terminal
+    # from taking a signal meant for whoever invoked us.
+    try:
+        child = subprocess.Popen(
+            argv,
+            start_new_session=True,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except OSError as exc:
+        raise ShowError(f"could not run the terminal command {argv[0]!r}: {exc}")
+
     if float_window and compositor is not None:
-        watch = compositor.watch_new_windows()
-
-    # Subscribed before spawning: a window mapped quickly could otherwise
-    # be missed by a subscription established after the fact.
-    with watch if watch is not None else _nothing():
-        try:
-            child = subprocess.Popen(argv, start_new_session=True)
-        except OSError as exc:
-            raise ShowError(f"could not run the terminal command {argv[0]!r}: {exc}")
-
-        if watch is not None:
-            con_id = watch.wait_for_pid(
-                child.pid, compositor_module.NEW_WINDOW_TIMEOUT
-            )
-            if con_id is None or not compositor.float_window(con_id):
-                # The file is open, which is what the caller asked for.
-                # Failing the whole invocation over placement would be
-                # worse than a window in the wrong place.
-                print(
-                    "dovetail-show: could not float the new window; "
-                    "it has been left where the compositor put it",
-                    file=sys.stderr,
-                )
+        con_id = compositor.wait_for_window(
+            lambda: _spawned_pids(child.pid),
+            compositor_module.NEW_WINDOW_TIMEOUT,
+        )
+        if con_id is None:
+            _report_no_window(child, argv)
+        elif not compositor.float_window(con_id):
+            _report_unplaced()
 
     if not want_socket:
         return None
     return _await_socket(child.pid, environ)
 
 
-class _nothing:
-    """A context manager for the case where there is nothing to manage."""
+def _spawned_pids(pid: int) -> set[int]:
+    """The spawned process and everything descended from it, right now.
 
-    def __enter__(self) -> None:
-        return None
+    A terminal may fork or re-exec before it maps a window, so the
+    window's process is not necessarily the one we started.
+    """
 
-    def __exit__(self, *exc_info: object) -> None:
-        return None
+    return {pid} | set(descendant_depths(processes.read_process_table(), pid))
+
+
+def _report_no_window(child: subprocess.Popen, argv: list[str]) -> None:
+    """Say what happened when no window ever appeared.
+
+    A terminal that exits instead of mapping a window is the case worth
+    distinguishing: nothing opened at all, and reporting only that the
+    window could not be placed would describe a file the resident cannot
+    see as a cosmetic problem.
+    """
+
+    status = child.poll()
+    if status is not None and status != 0:
+        raise ShowError(
+            f"the terminal command {argv[0]!r} exited with status {status} "
+            f"without opening a window; the file was not shown"
+        )
+    _report_unplaced()
+
+
+def _report_unplaced() -> None:
+    # The file is open, which is what the caller asked for. Failing the
+    # whole invocation over placement would be worse than a window in
+    # the wrong place.
+    print(
+        "dovetail-show: could not float the new window; "
+        "it has been left where the compositor put it",
+        file=sys.stderr,
+    )
 
 
 def _await_socket(

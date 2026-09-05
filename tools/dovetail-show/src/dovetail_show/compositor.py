@@ -1,24 +1,33 @@
 """The compositor seam. Sway is the only compositor implemented.
 
 Three questions are asked of a compositor, and they are the whole of the
-interface: which window has focus, tell me when a new window appears,
-and make that window float. A stranger on Hyprland or River adds a class
-beside `Sway` answering those three, and teaches `detect()` to return
-it; nothing outside this file needs to change.
+interface: which window has focus, which window belongs to a process we
+just started, and make that window float. A stranger on Hyprland or
+River adds a class beside `Sway` answering those three, and teaches
+`detect()` to return it; nothing outside this file needs to change.
 
 Not reaching a compositor is never an error here. `$SWAYSOCK` unset or
 `swaymsg` missing means "no focused editor was found", and the targeting
 rule falls through to launching one.
+
+The second question is answered by asking repeatedly rather than by
+subscribing to events. That is not a simplification for its own sake:
+`swaymsg -t subscribe` never reports the subscription being
+established — it consumes Sway's reply and prints only events, in both
+raw and pretty modes — so there is no moment at which a caller can know
+it is listening, and a window mapped in the gap is simply never seen. A
+state that is polled has no such gap: the window is either in the tree
+or it is not yet, and asking again costs one local socket round trip.
 """
 
 from __future__ import annotations
 
 import json
 import os
-import select
 import shutil
 import subprocess
 import time
+from typing import Callable, Container
 
 # How long to wait for the compositor to report the window belonging to
 # a terminal we just spawned. A terminal that maps a window at all does
@@ -26,13 +35,13 @@ import time
 # the cost of overrunning it is a tiled window rather than a failure.
 NEW_WINDOW_TIMEOUT = 5.0
 
+# How often to ask, while waiting for that window. Each ask is one
+# `swaymsg -t get_tree` over a local socket; a tenth of a second is far
+# below the threshold at which a person notices a window being placed.
+POLL_INTERVAL = 0.1
+
 # A single swaymsg query. It talks to a socket on the same machine.
 QUERY_TIMEOUT = 5.0
-
-# How long to wait for Sway to acknowledge a subscription. This is one
-# round trip over a local socket; a second is already generous, and
-# overrunning it costs a tiled window rather than a failure.
-SUBSCRIBE_TIMEOUT = 1.0
 
 
 class Sway:
@@ -43,15 +52,20 @@ class Sway:
     def __init__(self, swaymsg: str) -> None:
         self._swaymsg = swaymsg
 
-    def get_tree(self) -> object | None:
-        """The window tree as parsed JSON, or None if it cannot be had."""
+    def get_tree(self, timeout: float = QUERY_TIMEOUT) -> object | None:
+        """The window tree as parsed JSON, or None if it cannot be had.
+
+        `timeout` is settable so that a caller working to a deadline of
+        its own can hand down what is left of it rather than granting a
+        fresh allowance to every query.
+        """
 
         try:
             done = subprocess.run(
                 [self._swaymsg, "-t", "get_tree", "-r"],
                 capture_output=True,
                 text=True,
-                timeout=QUERY_TIMEOUT,
+                timeout=timeout,
             )
         except (OSError, subprocess.SubprocessError):
             return None
@@ -62,15 +76,47 @@ class Sway:
         except json.JSONDecodeError:
             return None
 
-    def watch_new_windows(self) -> "_SwayWindowWatch":
-        """Start listening for window events.
+    def wait_for_window(
+        self,
+        pids: Callable[[], Container[int]],
+        timeout: float,
+        *,
+        interval: float = POLL_INTERVAL,
+        monotonic=time.monotonic,
+        sleep=time.sleep,
+    ) -> int | None:
+        """The container id of a window owned by one of `pids()`, or None.
 
-        Used as a context manager, and entered *before* the terminal is
-        spawned: a window can be mapped before a subscription started
-        afterwards would have been established.
+        `pids` is called afresh on every attempt, and returns a set
+        rather than one process id, because a terminal is free to fork
+        or re-exec before it maps anything: the window can belong to a
+        descendant that did not exist when the wait began.
+
+        None means the window never appeared within `timeout`, which
+        costs a window in the wrong place and nothing else.
+
+        `timeout` bounds the whole wait, not each attempt. Every query
+        and every sleep is clamped to what is left of it, because a
+        query that hangs is exactly the case where a per-attempt
+        allowance would let this run to twice its documented budget
+        while the caller waits for a window it was promised in five
+        seconds.
         """
 
-        return _SwayWindowWatch(self._swaymsg)
+        deadline = monotonic() + timeout
+        while True:
+            remaining = deadline - monotonic()
+            if remaining <= 0:
+                return None
+            con_id = window_for_pids(
+                self.get_tree(timeout=min(QUERY_TIMEOUT, remaining)), pids()
+            )
+            if con_id is not None:
+                return con_id
+            remaining = deadline - monotonic()
+            if remaining <= 0:
+                return None
+            sleep(min(interval, remaining))
 
     def float_window(self, con_id: int) -> bool:
         """Make one container float. True if the compositor said it did."""
@@ -87,142 +133,29 @@ class Sway:
         return done.returncode == 0
 
 
-class _SwayWindowWatch:
-    """A live `swaymsg -t subscribe -m '["window"]'`."""
+def window_for_pids(tree: object, pids: Container[int]) -> int | None:
+    """The container id of the first window owned by one of `pids`.
 
-    def __init__(self, swaymsg: str) -> None:
-        self._swaymsg = swaymsg
-        self._process: subprocess.Popen | None = None
-        self._buffer = ""
-        self._pending: list[dict] = []
+    Pure: it walks a tree it is handed and reads nothing else, so every
+    shape a real tree can take — a window nested under workspaces, a
+    window already floating, a tree with no windows at all — is testable
+    without a compositor.
+    """
 
-    def __enter__(self) -> "_SwayWindowWatch":
-        """Start the subscription, and wait until Sway has acknowledged it.
-
-        Starting the process is not the same as being subscribed: until
-        Sway has processed the request it is not sending us anything, and
-        a window that maps in that gap is never reported. Sway answers a
-        subscription with `{"success": true}` before any event, so
-        waiting for that reply closes the window in which a terminal we
-        are about to spawn could map unseen.
-        """
-
-        try:
-            self._process = subprocess.Popen(
-                [self._swaymsg, "-t", "subscribe", "-m", "-r", '["window"]'],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
-                text=False,
-            )
-        except OSError:
-            self._process = None
-            return self
-
-        if not self._await_acknowledgement(SUBSCRIBE_TIMEOUT):
-            # No acknowledgement means we cannot claim to be watching.
-            # Tear the subscription down and let the caller carry on
-            # unplaced, exactly as it does when there is no compositor.
-            self.__exit__()
-            self._process = None
-        return self
-
-    def _await_acknowledgement(self, timeout: float) -> bool:
-        """True once Sway has confirmed the subscription."""
-
-        deadline = time.monotonic() + timeout
-        while True:
-            # What has already arrived is answered before the stream is
-            # consulted, so a reply that came in with the first read is
-            # not waited on a second time.
-            replies = self._drain()
-            if replies:
-                acknowledgement, rest = replies[0], replies[1:]
-                # Anything that arrived alongside the reply is already an
-                # event, and dropping it here would reintroduce the race
-                # this method exists to close.
-                self._pending.extend(rest)
-                return acknowledgement.get("success") is True
-
-            if self._process is None or self._process.stdout is None:
-                return False
-            stream = self._process.stdout
-
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                return False
-            ready, _, _ = select.select([stream], [], [], remaining)
-            if not ready:
-                return False
-            chunk = os.read(stream.fileno(), 1 << 16)
-            if not chunk:
-                return False
-            self._buffer += chunk.decode("utf-8", errors="replace")
-
-    def __exit__(self, *exc_info: object) -> None:
-        if self._process is None:
-            return
-        self._process.terminate()
-        try:
-            self._process.wait(timeout=QUERY_TIMEOUT)
-        except subprocess.TimeoutExpired:
-            self._process.kill()
-
-    def wait_for_pid(self, pid: int, timeout: float) -> int | None:
-        """The container id of the first new window belonging to `pid`.
-
-        None on timeout, on a subscription that never started, or on a
-        compositor that hung up.
-        """
-
-        if self._process is None or self._process.stdout is None:
-            return None
-
-        deadline = time.monotonic() + timeout
-        stream = self._process.stdout
-        while True:
-            queued, self._pending = self._pending, []
-            for event in queued + self._drain():
-                if event.get("change") != "new":
-                    continue
-                container = event.get("container")
-                if isinstance(container, dict) and container.get("pid") == pid:
-                    con_id = container.get("id")
-                    if isinstance(con_id, int):
-                        return con_id
-
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                return None
-            ready, _, _ = select.select([stream], [], [], remaining)
-            if not ready:
-                return None
-            chunk = os.read(stream.fileno(), 1 << 16)
-            if not chunk:
-                return None
-            self._buffer += chunk.decode("utf-8", errors="replace")
-
-    def _drain(self) -> list[dict]:
-        """Every complete JSON object in the buffer so far.
-
-        Decoded with `raw_decode` rather than split on newlines, so that
-        it does not matter whether this swaymsg pretty-prints its events
-        or emits one per line.
-        """
-
-        decoder = json.JSONDecoder()
-        events = []
-        while True:
-            self._buffer = self._buffer.lstrip()
-            if not self._buffer:
-                break
-            try:
-                value, end = decoder.raw_decode(self._buffer)
-            except json.JSONDecodeError:
-                break
-            self._buffer = self._buffer[end:]
-            if isinstance(value, dict):
-                events.append(value)
-        return events
+    stack = [tree]
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, dict):
+            continue
+        pid = node.get("pid")
+        con_id = node.get("id")
+        if isinstance(pid, int) and pid in pids and isinstance(con_id, int):
+            return con_id
+        for key in ("nodes", "floating_nodes"):
+            children = node.get(key)
+            if isinstance(children, list):
+                stack.extend(children)
+    return None
 
 
 def detect(environ: os._Environ | dict = os.environ) -> Sway | None:
