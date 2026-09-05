@@ -120,6 +120,14 @@
             dovetail-nvim = self.packages.${system}.dovetail;
             dovetail-show = self.packages.${system}.dovetail-show;
           };
+
+          # The launch path's failure detection, for the no-compositor
+          # case the sandbox actually is: a terminal that dies instead of
+          # opening anything fails the invocation loudly, rather than the
+          # silent, zero-exit-status success this used to be.
+          show-launch-failure = pkgs.callPackage ./nix/checks/show-launch-failure.nix {
+            dovetail-show = self.packages.${system}.dovetail-show;
+          };
         }
       );
 

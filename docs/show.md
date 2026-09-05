@@ -135,13 +135,33 @@ terminal".
 If the window is not seen within five seconds, the window is left where
 the compositor put it and a warning goes to stderr. The file is open,
 which is what you asked for; failing the whole invocation over placement
-would be worse than a slightly misplaced window. `--no-float` skips the
-step entirely.
+would be worse than a slightly misplaced window. `--no-float` skips only
+the `floating enable` call, never this wait: the wait is what confirms
+the launch actually produced something, not just the floating, so a
+tiled launch gets the same failure detection as a floating one, at no
+cost when everything goes right. With `--no-float`, a window that simply
+has not appeared yet within the five seconds is still just a warning —
+worded as "no window was seen" rather than "could not float", since
+nothing asked to float it.
 
 One case is distinguished from that, because it is not cosmetic: if the
 terminal command *exited* rather than mapping a window, nothing opened
 at all, and `dovetail-show` fails and says so with the exit status
-instead of reporting a placement problem.
+instead of reporting a placement problem. This applies whether or not
+`--no-float` was given.
+
+### Without a compositor
+
+If no compositor is reachable at all — `$SWAYSOCK` unset, `swaymsg`
+missing — there is no window tree to poll, so `dovetail-show` instead
+watches the spawned terminal itself for two seconds. A terminal that
+exits within that window, with a nonzero status, fails the invocation
+and names the exit status, the same as a terminal that exits instead of
+mapping a window on the compositor path above. A terminal still running
+when the two seconds are up is presumed fine: the watch exists to catch
+a terminal that fails immediately — a broken `$DOVETAIL_TERMINAL`, bad
+arguments — not to prove that the editor will ever produce a visible
+result, which this path has no way to check at all.
 
 ## Options
 
@@ -166,13 +186,14 @@ instead of reporting a placement problem.
 
 ## Timeouts, and what happens when they expire
 
-Three waits are bounded, and each expiry has a defined outcome rather
+Four waits are bounded, and each expiry has a defined outcome rather
 than a hang.
 
 | Wait | Bound | On expiry |
 | --- | --- | --- |
 | A single question to an instance | 5 seconds | That instance is treated as not answering, and ranking moves to the next candidate. |
-| A new window appearing after a launch | 5 seconds | The window is left tiled, and a warning goes to stderr. Exit status is still 0. |
+| A new window appearing after a launch, when a compositor is reachable | 5 seconds | The window is left tiled, and a warning goes to stderr. Exit status is still 0. Runs whether or not `--no-float` was given; a terminal that exited instead fails the command regardless of this wait. |
+| A spawned terminal's own liveness, when no compositor is reachable | 2 seconds | A terminal still running is presumed fine; exit status is 0. A terminal that exited with a nonzero status inside the window fails the command, naming that status. |
 | A launched instance publishing its socket, for `--print-socket` only | 10 seconds | The command fails with exit status 1, saying that the file was opened but no socket appeared. The file is open regardless. |
 
 ## A worked example
@@ -235,7 +256,7 @@ exists to avoid.
 
 ## What `nix flake check` proves
 
-Two of the flake's checks belong to this verb, and neither needs
+Three of the flake's checks belong to this verb, and none of them needs
 hardware or hands:
 
 - **`show-unit`** — the targeting rule as a pure function. It takes a
@@ -255,9 +276,16 @@ hardware or hands:
   place the cursor, `--print-socket` to print the socket and nothing
   else, and a socket that does not answer to fail loudly, name itself,
   and leave the live instance untouched.
+- **`show-launch-failure`** — the launch path's failure detection on the
+  no-compositor branch, which the sandbox is *always* on, since it has no
+  Wayland session: `--terminal false` fails the whole invocation and
+  names the command and its exit status, and `--terminal true` (a
+  stand-in for a terminal that daemonizes and exits 0 immediately) is
+  left alone.
 
-Steps two and three cannot be checked in the Nix sandbox, which has no
-Wayland session and no compositor. They are the checklist below.
+The rest of step two and three — a real compositor placing and floating
+a window — cannot be checked in the Nix sandbox, which has no Wayland
+session. That is the checklist below.
 
 ## Confirming it by hand
 

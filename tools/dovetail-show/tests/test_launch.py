@@ -99,6 +99,20 @@ class TestTheEditorGetsAWindowNotThePipes:
             def poll(self):
                 return None
 
+        class ImmediateWindow:
+            """A compositor that finds the window at once.
+
+            What this test cares about is the child's stdio and session,
+            not the wait for a window; a compositor that answers
+            instantly keeps it that way without sleeping in real time.
+            """
+
+            def wait_for_window(self, pids, timeout):
+                return 1
+
+            def float_window(self, con_id):
+                return True
+
         def fake_popen(argv, **kwargs):
             recorded["argv"] = argv
             recorded["kwargs"] = kwargs
@@ -110,6 +124,7 @@ class TestTheEditorGetsAWindowNotThePipes:
             None,
             terminal="foot -e",
             float_window=False,
+            compositor=ImmediateWindow(),
             environ={"DOVETAIL_TERMINAL": "foot -e"},
         )
         return recorded
@@ -153,3 +168,192 @@ class TestATerminalThatNeverOpensAWindow:
                 environ={"DOVETAIL_TERMINAL": "foot -e"},
             )
         assert "status 2" in str(caught.value)
+
+
+class TestNoFloatStillWaitsForWindow:
+    """`--no-float` skips the `floating enable` call, never the wait.
+
+    Before this fix, a reachable compositor plus `--no-float` meant the
+    whole float step was skipped, so a terminal that started and then
+    died left no diagnostic at all on this path.
+    """
+
+    def test_a_vanished_terminal_is_still_reported(self, monkeypatch, tmp_path):
+        class DeadChild:
+            pid = 4321
+
+            def poll(self):
+                return 7
+
+        monkeypatch.setattr(
+            launch_module.subprocess, "Popen", lambda argv, **kw: DeadChild()
+        )
+
+        class NoWindows:
+            def wait_for_window(self, pids, timeout, **kwargs):
+                return None
+
+            def float_window(self, con_id):
+                raise AssertionError("floating was never asked for")
+
+        with pytest.raises(ShowError) as caught:
+            launch_module.launch(
+                tmp_path / "note.md",
+                None,
+                terminal="foot -e",
+                float_window=False,
+                compositor=NoWindows(),
+                environ={"DOVETAIL_TERMINAL": "foot -e"},
+            )
+        assert "status 7" in str(caught.value)
+
+    def test_a_window_that_appears_is_never_floated(self, monkeypatch, tmp_path):
+        class AliveChild:
+            pid = 4321
+
+            def poll(self):
+                return None
+
+        monkeypatch.setattr(
+            launch_module.subprocess, "Popen", lambda argv, **kw: AliveChild()
+        )
+
+        class FoundWindow:
+            def wait_for_window(self, pids, timeout, **kwargs):
+                return 1
+
+            def float_window(self, con_id):
+                raise AssertionError("floating was never asked for")
+
+        launch_module.launch(
+            tmp_path / "note.md",
+            None,
+            terminal="foot -e",
+            float_window=False,
+            compositor=FoundWindow(),
+            environ={"DOVETAIL_TERMINAL": "foot -e"},
+        )
+
+    def test_a_window_not_yet_seen_is_a_warning_not_a_failure(
+        self, monkeypatch, tmp_path, capsys
+    ):
+        class AliveChild:
+            pid = 4321
+
+            def poll(self):
+                return None
+
+        monkeypatch.setattr(
+            launch_module.subprocess, "Popen", lambda argv, **kw: AliveChild()
+        )
+
+        class NoWindowYet:
+            def wait_for_window(self, pids, timeout, **kwargs):
+                return None
+
+        launch_module.launch(
+            tmp_path / "note.md",
+            None,
+            terminal="foot -e",
+            float_window=False,
+            compositor=NoWindowYet(),
+            environ={"DOVETAIL_TERMINAL": "foot -e"},
+        )
+        assert "no window was seen" in capsys.readouterr().err
+
+
+class TestNoCompositorLivenessWatch:
+    """A short, driven-clock watch of the child when there is no tree to poll."""
+
+    def test_a_child_that_exits_within_budget_is_reported(self):
+        class DyingChild:
+            pid = 1
+            _polls = iter([None, None, 5])
+
+            def poll(self):
+                return next(self._polls)
+
+        clock = _Clock(step=0.5)
+        with pytest.raises(ShowError) as caught:
+            launch_module._watch_liveness(
+                DyingChild(),
+                ["broken-terminal"],
+                budget=2.0,
+                monotonic=clock.read,
+                sleep=lambda _: None,
+            )
+        assert "status 5" in str(caught.value)
+        assert "broken-terminal" in str(caught.value)
+
+    def test_a_child_alive_at_the_end_of_the_budget_passes(self):
+        class AliveChild:
+            pid = 1
+
+            def poll(self):
+                return None
+
+        clock = _Clock(step=0.5)
+        # Should return normally: no exception, no window to check.
+        launch_module._watch_liveness(
+            AliveChild(),
+            ["some-terminal"],
+            budget=2.0,
+            monotonic=clock.read,
+            sleep=lambda _: None,
+        )
+
+    def test_a_clean_exit_within_budget_is_not_a_failure(self):
+        class CleanExitChild:
+            pid = 1
+
+            def poll(self):
+                return 0
+
+        clock = _Clock(step=0.5)
+        # A clean exit (e.g. a terminal that daemonizes) is not reported.
+        launch_module._watch_liveness(
+            CleanExitChild(),
+            ["some-terminal"],
+            budget=2.0,
+            monotonic=clock.read,
+            sleep=lambda _: None,
+        )
+
+    def test_the_watch_never_outlives_its_budget(self):
+        class NeverDies:
+            pid = 1
+
+            def poll(self):
+                return None
+
+        # `monotonic` only reports time; `sleep` is what advances it, the
+        # same convention `TestWaitForWindow` in test_compositor.py uses,
+        # so a sleep clamped correctly is the only way this clock moves
+        # past the budget at all.
+        clock = _Clock(step=0.0)
+        launch_module._watch_liveness(
+            NeverDies(),
+            ["some-terminal"],
+            budget=1.0,
+            interval=0.3,
+            monotonic=clock.read,
+            sleep=clock.advance,
+        )
+        # Each sleep is clamped to what is left of the budget, so the
+        # clock lands exactly on the deadline rather than overshooting it.
+        assert clock.now == 1.0
+
+
+class _Clock:
+    """A clock that advances on every reading, so no test really waits."""
+
+    def __init__(self, step=0.1):
+        self.now = 0.0
+        self.step = step
+
+    def read(self):
+        self.now += self.step
+        return self.now
+
+    def advance(self, seconds):
+        self.now += seconds
