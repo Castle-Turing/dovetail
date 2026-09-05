@@ -87,9 +87,15 @@ as unset, as the specification requires, so a stray relative setting
 falls through to the home default instead of scattering scratch
 directories under whatever directory you happened to be in.
 
-Missing directories are created, mode `0700`, and the file `0600`.
-Unfinished thinking is not something to inherit a multi-user machine's
-umask for.
+The scratch directory itself — the immediate parent of the file — is
+created mode `0700` if missing, and the file `0600`. Any further-out
+ancestor this also has to create (the `deep` in a
+`DOVETAIL_SCRATCH_DIR=/data/deep/scratch`, say) gets the platform's
+ordinary default for a new directory, umask included: `mkdir -p`
+semantics apply the requested mode only to the leaf. That leaf is where
+the resident's unfinished thinking actually lives, so it is the one
+directory this is not willing to inherit a multi-user machine's umask
+for.
 
 > **Do not point this inside a flake-tracked tree.** Nix evaluation
 > copies the tree it is given into the Nix store, which is

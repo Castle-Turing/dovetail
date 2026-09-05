@@ -127,9 +127,13 @@ def ensure(path: Path) -> Path:
     modification time moves. The file is created empty and Dovetail
     never writes a line into it; the first line is the resident's.
 
-    Directories are created 0700 and the file 0600. A scratch file is
-    the resident's unfinished thinking, and the default umask on a
-    multi-user machine is not a decision this should inherit silently.
+    The immediate parent directory is created 0700 and the file 0600.
+    A scratch file is the resident's unfinished thinking, and the
+    default umask on a multi-user machine is not a decision this
+    should inherit silently for the directory that holds it. Any
+    further-out ancestor `mkdir` also has to create gets the ordinary
+    umask-derived default: `parents=True` only applies `mode` to the
+    leaf, mirroring `mkdir -p`.
     """
 
     parent = path.parent
