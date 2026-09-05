@@ -111,10 +111,19 @@ export DOVETAIL_EDITOR=/home/resident/.local/state/nix/profiles/editor/bin/nvim
 
 ### Floating, without configuring your compositor
 
-You do not have to add a `for_window` rule to your Sway config. Before
-the terminal is spawned, `dovetail-show` subscribes to Sway's window
-events; when a new window appears whose process id is the terminal it
-just started, it issues `floating enable` for that container.
+You do not have to add a `for_window` rule to your Sway config. After
+spawning the terminal, `dovetail-show` asks Sway for its window tree
+until a window appears whose process id is the terminal it just started
+or one of that terminal's descendants, and then issues `floating enable`
+for that container.
+
+It asks repeatedly rather than subscribing to window events, and that is
+not laziness. `swaymsg -t subscribe` never reports the subscription
+being established: it consumes Sway's reply and prints only events, in
+both raw and pretty modes. So a caller cannot know when it is listening,
+and a window mapped before it is has no second chance. A tree that is
+polled has no such gap — the window is either there or not there yet —
+and each ask is one round trip over a local socket.
 
 Matching on process id rather than application id is deliberate. An
 application-id rule would make you carry the flag that *sets* the
@@ -128,6 +137,11 @@ the compositor put it and a warning goes to stderr. The file is open,
 which is what you asked for; failing the whole invocation over placement
 would be worse than a slightly misplaced window. `--no-float` skips the
 step entirely.
+
+One case is distinguished from that, because it is not cosmetic: if the
+terminal command *exited* rather than mapping a window, nothing opened
+at all, and `dovetail-show` fails and says so with the exit status
+instead of reporting a placement problem.
 
 ## Options
 
@@ -193,19 +207,21 @@ instance — wrong, but not harmful. Use `--socket` or `$DOVETAIL_SOCKET`
 if you work this way.
 
 **A terminal that daemonizes will not be floated.** The floating step
-matches the window against the process id of the command it spawned. A
-client that hands the request to an already-running server — `footclient`,
-`kitty @ launch`, `wezterm connect` — produces a window belonging to
-some other process, so the match times out and the window is left tiled.
-The file still opens. Naming the standalone binary in
-`$DOVETAIL_TERMINAL` avoids it.
+matches the window against the process id of the command it spawned, or
+any descendant of it, so a terminal that forks or re-execs before
+mapping is still found. A client that hands the request to an
+*already-running server*, though — `footclient`, `kitty @ launch`,
+`wezterm connect` — produces a window belonging to a process that is no
+relation, so the match times out and the window is left tiled. The file
+still opens. Naming the standalone binary in `$DOVETAIL_TERMINAL` avoids
+it.
 
 **Sway is the only compositor step two knows.** That is a real limit,
 not a temporary one: `swaymsg` is the only compositor query implemented.
 It is behind its own seam in the source (`compositor.py`), where a class
-answering three questions — which window has focus, tell me when a new
-window appears, make that window float — is the whole of what another
-compositor would have to supply.
+answering three questions — which window has focus, which window belongs
+to a process I just started, make that window float — is the whole of
+what another compositor would have to supply.
 
 **`/proc` is a Linux interface.** Step two needs the process tree, and
 reads it from `/proc`. On a system without one, the rule falls through
