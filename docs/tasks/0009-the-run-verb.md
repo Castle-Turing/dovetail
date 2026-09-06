@@ -164,3 +164,85 @@ the backlog file in that same commit — and append a "Judgment calls
 made during implementation" section recording every decision you made
 where this brief was ambiguous. That section is part of the
 deliverable.
+
+## Judgment calls made during implementation
+
+Every decision below is one this brief left open, recorded here so a
+reader who was not in the room can see what was chosen and why.
+
+**The refused set grew, as the brief invited.** Beyond the classes it
+names, four more are refused, each for the same reason as the named
+ones — the drawn line and the executed line would differ:
+
+- The three remaining Unicode bidirectional controls, `U+061C`,
+  `U+200E` and `U+200F`. The brief named the embeddings, overrides and
+  isolates; the marks belong to the same property (`Bidi_Control` is
+  exactly these nine code points) and reorder drawn text just as
+  effectively. Refusing eight of nine would have been an arbitrary
+  line.
+- `U+2028` and `U+2029`, the line and paragraph separators, which a
+  terminal or pager may break the line at — the newline failure with a
+  different code point.
+- The zero-width characters `U+00AD`, `U+200B` and `U+FEFF`. They
+  occupy no width, so `rm /tmp<U+200B>x` reads as one path and runs as
+  another. This is the hazard with no escape sequence involved.
+- The zero-width joiner and non-joiner (`U+200D`, `U+200C`) are
+  deliberately **not** refused, which is the other half of the same
+  call. They are load-bearing inside ordinary text — an emoji sequence
+  in a commit message — and they hide nothing that is not already
+  visible beside them, so refusing them would reject commands a
+  resident legitimately means to run.
+
+**A prompt with no terminal refuses rather than reads.** The brief did
+not say what the wrapper should do when its standard input is not a
+tty. It exits 2 without running anything, which the verb then reports
+as a failed launch. The reasoning is the verb's own promise: the
+guarantee is that the resident *read* the line, and a line that cannot
+be displayed has not been read by anyone. Reading a proposal from a
+pipe would be the one path on which a command runs unseen. The
+`run-prompt` check covers it.
+
+**Declining does not hold the window open.** The brief's step 5 attaches
+the hold-open to a command that ran, and its step 3 says a decline
+"exits without executing anything", so a decline says what happened and
+closes. A resident who has just cleared a line knows what she did; the
+hold-open exists so that a command's *output* survives long enough to
+read.
+
+**The provenance block is rendered in Python, not in the wrapper.** It
+is passed to the wrapper as one argument, whose only job is to print
+it. The block is the thing the resident is asked to read before pressing
+Enter, so it is worth unit-testing in the language the rest of the verb
+is written in, and it leaves the wrapper with a job it cannot get wrong.
+
+**Bash is baked in as a store path, with no override.** `dovetail-seams`
+bakes in the editor, the client and the REPL; the prompt needs a bash
+new enough for `read -e -i`, and the terminal the resident named may
+start any shell or none. It is substituted in
+`nix/packages/dovetail-run.nix` exactly as the other three are, and
+there is deliberately no `$DOVETAIL_SHELL`: the wrapper *is* a bash
+script, so a shell slot would be a slot nothing else could fill.
+
+**The pty check drives the whole verb, not the wrapper alone.** The
+brief offered either. Filling the terminal slot with a stand-in that
+allocates a pty exercises the real argv path — the resident's prefix,
+the baked bash, the shipped wrapper, the two sanitized strings — for the
+same effort as running the wrapper directly, and it is the path a
+resident's `foot -e` takes.
+
+**`--from` reaches argparse as `dest="proposer"`.** `from` is a Python
+keyword, so the attribute needs another name; the flag itself is spelled
+as the brief specifies.
+
+**`Milestone: M3` was added to this brief's header.** The brief arrived
+with `Title:` only. Its own vision amendment makes the run verb M3, and
+task 0006 carries the equivalent header for M2, so the queue reads
+consistently with it.
+
+**Four one-word corrections outside the vision document.** The brief
+says not to rewrite anything else in `docs/vision.md`, and nothing else
+in it was touched. But renumbering the joint left four references to it
+as "M3" stale elsewhere in the tree — two in `docs/scriptorium.md`, one
+each in `dovetail_seams/__init__.py` and `dovetail_seams/editor.py` —
+and each was corrected to M4. A document that contradicts the founding
+context is worse than a slightly wider diff.
