@@ -140,6 +140,25 @@ class TestTerminalConfigFile:
         assert str(config_file) in message
         assert "could not read" in message
 
+    def test_undecodable_bytes_are_refused_naming_the_path(self, tmp_path):
+        config_file = tmp_path / "dovetail" / "terminal"
+        config_file.parent.mkdir(parents=True)
+        config_file.write_bytes(b"\xff\xfe not valid utf-8")
+        with pytest.raises(DovetailError) as caught:
+            terminal_argv(None, {"XDG_CONFIG_HOME": str(tmp_path)})
+        assert str(config_file) in str(caught.value)
+
+    def test_an_embedded_nul_byte_is_refused_naming_the_path(self, tmp_path):
+        # A NUL byte is content a file can hold that an environment
+        # variable never could; caught here rather than left for
+        # subprocess.Popen to reject after other side effects have run.
+        config_file = tmp_path / "dovetail" / "terminal"
+        config_file.parent.mkdir(parents=True)
+        config_file.write_bytes(b"foot\x00-e")
+        with pytest.raises(DovetailError) as caught:
+            terminal_argv(None, {"XDG_CONFIG_HOME": str(tmp_path)})
+        assert str(config_file) in str(caught.value)
+
     def test_neither_source_set_falls_through_to_terminal(self):
         # No $XDG_CONFIG_HOME and no $HOME: there is no path to look at,
         # so this is the same as a file that does not exist.
