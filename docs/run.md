@@ -218,8 +218,8 @@ it, edit it or decline it is yours to decide after the verb has
 returned. An agent that proposed the command closes the loop by looking
 at what the command was supposed to change.
 
-A durable record of what was proposed and what was actually run is task
-0010, and does not exist yet.
+A durable record of what was proposed and what was actually run is
+deferred work, and does not exist yet.
 
 ## Options
 
@@ -243,7 +243,7 @@ A durable record of what was proposed and what was actually run is task
 
 | Wait | Bound | On expiry |
 | --- | --- | --- |
-| A new window appearing after a launch, when a compositor is reachable | 5 seconds | The window is left tiled and a warning goes to stderr. Exit status is still 0. A terminal that exited instead fails the command regardless of this wait. |
+| A new window appearing after a launch, when a compositor is reachable | 5 seconds | No window was seen; a warning goes to stderr. Exit status is still 0. A terminal that exited instead fails the command regardless of this wait. |
 | A spawned terminal's own liveness, when no compositor is reachable | 2 seconds | A terminal still running is presumed fine; exit status is 0. A terminal that exited with a nonzero status inside the window fails the command, naming that status. |
 
 Nothing waits for the resident. She may read the provenance block, go
@@ -263,8 +263,8 @@ will be run by bash, so write the line you would type into `sh`.
 
 **No record of what ran.** The delta between the command proposed and
 the command actually run is the correction signal worth keeping, and
-keeping it is task 0010. Today the prompt is transient: the window
-closes and nothing remembers.
+keeping it is deferred work, not yet a numbered task. Today the prompt
+is transient: the window closes and nothing remembers.
 
 **A terminal that daemonizes will not be floated.** Same as
 `dovetail-show`, for the same reason: a client that hands the request to
