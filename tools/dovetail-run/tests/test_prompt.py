@@ -41,12 +41,19 @@ def test_the_block_says_nothing_has_run_and_how_to_decline():
     assert "clear it to decline" in block
 
 
-def test_the_wrapper_argv_is_bash_the_script_and_two_strings():
+def test_the_wrapper_argv_is_bash_the_script_and_five_strings():
     argv = prompt.wrapper_argv("# block", "echo hi")
-    assert len(argv) == 4
+    assert len(argv) == 7
     assert argv[0].endswith("bash")
     assert argv[1] == str(prompt.WRAPPER)
-    assert argv[2:] == ["# block", "echo hi"]
+    assert argv[2:] == ["# block", "echo hi", "", "", ""]
+
+
+def test_the_record_path_and_raw_provenance_trail_the_command():
+    argv = prompt.wrapper_argv(
+        "# block", "echo hi", record_path="/tmp/r.json", proposer="a seat", why="because"
+    )
+    assert argv[2:] == ["# block", "echo hi", "/tmp/r.json", "a seat", "because"]
 
 
 def test_the_wrapper_is_shipped_beside_the_module():

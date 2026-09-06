@@ -56,14 +56,48 @@ def test_the_wrapper_is_appended_to_the_terminal_argv_prefix(spawned):
 def test_the_command_reaches_the_wrapper_as_one_untouched_argument(spawned):
     command = "nixos-rebuild switch --flake .#castle  # note the spaces"
     cli.run([command, "--from", "an agent"], environ=ENV)
-    assert spawned[0][-1] == command
+    assert spawned[0][5] == command
 
 
 def test_the_provenance_block_is_the_argument_before_the_command(spawned):
     cli.run(["echo hi", "--from", "a seat", "--why", "because"], environ=ENV)
-    block = spawned[0][-2]
+    block = spawned[0][4]
     assert "# Proposed by: a seat" in block
     assert "# Why: because" in block
+
+
+def test_without_record_the_trailing_record_argument_is_empty(spawned):
+    cli.run(["echo hi"], environ=ENV)
+    assert spawned[0][6:] == ["", "", ""]
+
+
+def test_record_reaches_the_wrapper_as_the_argument_after_the_command(
+    spawned, tmp_path
+):
+    record_path = tmp_path / "record.json"
+    cli.run(["echo hi", "--record", str(record_path)], environ=ENV)
+    assert spawned[0][6] == str(record_path)
+
+
+def test_from_and_why_reach_the_wrapper_raw_alongside_the_record_path(
+    spawned, tmp_path
+):
+    record_path = tmp_path / "record.json"
+    cli.run(
+        ["echo hi", "--record", str(record_path), "--from", "a seat", "--why", "because"],
+        environ=ENV,
+    )
+    assert spawned[0][6:] == [str(record_path), "a seat", "because"]
+
+
+def test_a_record_path_whose_parent_directory_is_missing_is_refused_before_spawning(
+    spawned, tmp_path
+):
+    record_path = tmp_path / "nonexistent" / "record.json"
+    with pytest.raises(DovetailError) as caught:
+        cli.run(["echo hi", "--record", str(record_path)], environ=ENV)
+    assert str(record_path) in str(caught.value)
+    assert spawned == []
 
 
 def test_a_prefix_with_more_than_two_words_is_kept_whole(spawned):

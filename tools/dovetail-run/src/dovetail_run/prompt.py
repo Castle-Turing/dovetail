@@ -60,15 +60,28 @@ def _text(value: str | None, absent: str) -> str:
     return value.strip()
 
 
-def wrapper_argv(block: str, command: str) -> list[str]:
-    """The trailing arguments the terminal runs: bash, wrapper, two strings.
+def wrapper_argv(
+    block: str,
+    command: str,
+    *,
+    record_path: str = "",
+    proposer: str = "",
+    why: str = "",
+) -> list[str]:
+    """The trailing arguments the terminal runs: bash, wrapper, five strings.
 
-    Exactly two arguments carry text, and both are argv elements rather
-    than anything a shell parses. There is no `sh -c` between the verb
-    and the wrapper, so nothing the caller passed is ever interpreted as
-    syntax on the way in; the one place the command is interpreted as a
-    shell line is the wrapper's `eval`, after the resident has read it
-    and pressed Enter.
+    Every argument is a genuine argv element rather than anything a shell
+    parses. There is no `sh -c` between the verb and the wrapper, so
+    nothing the caller passed is ever interpreted as syntax on the way
+    in; the one place the command is interpreted as a shell line is the
+    wrapper's `eval`, after the resident has read it and pressed Enter.
+
+    `record_path`, `proposer` and `why` are always passed, empty string
+    standing in for "not given" — the wrapper's own arity never changes,
+    whether or not `--record` was asked for. It is the wrapper that
+    decides an empty `record_path` means "write nothing", since it is
+    the wrapper, not this process, that is still running when the
+    interaction ends.
     """
 
-    return [BASH, str(WRAPPER), block, command]
+    return [BASH, str(WRAPPER), block, command, record_path, proposer, why]
