@@ -113,18 +113,26 @@ def _terminal_config_argv(path: Path) -> list[str] | None:
 
     None for a missing or blank file, mirroring how an unset or blank
     environment variable is treated. A file that exists but cannot be
-    read is a refusal rather than a fall-through: a present-but-broken
+    read, is not text, or names an argument containing a NUL byte is a
+    refusal rather than a fall-through: a present-but-broken
     configuration is a fact the resident wants to hear, not skip past.
+    A NUL byte in particular is checked here rather than left for
+    `subprocess.Popen` to reject later, because a file can hold bytes an
+    environment variable never could, and by the time `Popen` sees it
+    the caller may already have created something on the strength of a
+    terminal that was never going to start.
     """
 
     try:
         content = path.read_text()
     except FileNotFoundError:
         return None
-    except OSError as exc:
+    except (OSError, UnicodeDecodeError) as exc:
         raise DovetailError(f"could not read {path}: {exc}") from exc
     if not content.strip():
         return None
+    if "\0" in content:
+        raise DovetailError(f"{path} contains a NUL byte, which cannot appear in a command")
     return split_argv(content, str(path))
 
 
