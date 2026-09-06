@@ -97,6 +97,10 @@
           dovetail-scriptorium = pkgs.callPackage ./nix/packages/dovetail-scriptorium.nix {
             inherit dovetail-seams;
           };
+
+          dovetail-run = pkgs.callPackage ./nix/packages/dovetail-run.nix {
+            inherit dovetail-seams;
+          };
         }
       );
 
@@ -150,6 +154,29 @@
           # The scriptorium verb's unit tests over the scratch file
           # convention, the layout rule and the order the steps run in.
           scriptorium-unit = self.packages.${system}.dovetail-scriptorium;
+
+          # The run verb's unit tests over what it refuses, the
+          # provenance block and the argv the terminal is handed, which
+          # run in the package's own check phase — so this check is the
+          # package.
+          run-unit = self.packages.${system}.dovetail-run;
+
+          # The prompt itself, driven under a pty: pressing Enter on the
+          # pre-filled line runs exactly the command that was displayed,
+          # an edited line runs the edited line, and a cleared line runs
+          # nothing. This is the one claim of the verb, checked against a
+          # real bash rather than asserted.
+          run-prompt = pkgs.callPackage ./nix/checks/run-prompt.nix {
+            dovetail-run = self.packages.${system}.dovetail-run;
+          };
+
+          # The run verb's launch path, for the no-compositor case the
+          # sandbox is: a terminal that dies fails the invocation loudly,
+          # and everything refusable is refused before any terminal is
+          # spawned at all.
+          run-launch-failure = pkgs.callPackage ./nix/checks/run-launch-failure.nix {
+            dovetail-run = self.packages.${system}.dovetail-run;
+          };
 
           # The scriptorium end to end, for the path a sandbox can reach:
           # no compositor, so no layout — but a real editor holding the

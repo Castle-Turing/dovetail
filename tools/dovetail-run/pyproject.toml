@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dovetail-run"
+version = "0.1.0"
+description = "Put a command in front of the resident, pre-filled and editable, without running it"
+requires-python = ">=3.10"
+dependencies = ["dovetail-seams"]
+
+[project.scripts]
+dovetail-run = "dovetail_run.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+dovetail_run = ["prompt.bash"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
