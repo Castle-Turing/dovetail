@@ -53,10 +53,7 @@ def launch(
         con_id = seams.wait_for_window(compositor, child)
         if con_id is None:
             seams.raise_if_terminal_died(child, argv, _NOT_PROPOSED)
-            if float_window:
-                _report_unplaced()
-            else:
-                _report_window_not_seen()
+            _report_window_not_seen()
         elif float_window and not compositor.float_window(con_id):
             _report_unplaced()
     else:
