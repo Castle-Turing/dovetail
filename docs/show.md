@@ -93,10 +93,24 @@ export DOVETAIL_TERMINAL="alacritty -e"
 export DOVETAIL_TERMINAL="kitty --"
 ```
 
-`$TERMINAL` is the fallback if `$DOVETAIL_TERMINAL` is unset, and
-`--terminal` overrides both for one invocation. If none of the three is
-set, the command fails and says so; there is no hardcoded default,
-because a wrong terminal is worse than a clear refusal.
+An environment variable never reaches a session a harness or a service
+manager spawned on your behalf, so there is also a declarative slot: the
+file `$XDG_CONFIG_HOME/dovetail/terminal`, falling back to
+`~/.config/dovetail/terminal` when `$XDG_CONFIG_HOME` is unset. Its
+content is parsed the same way, as one argv prefix. A private layer
+managed with home-manager can write it declaratively:
+
+```nix
+xdg.configFile."dovetail/terminal".text = "foot -e";
+```
+
+The full precedence, first match wins: `--terminal`, then
+`$DOVETAIL_TERMINAL`, then that file, then `$TERMINAL`, which is the
+fallback of last resort — an ambient, generic setting a desktop
+environment may already have pointed at something that is not an argv
+prefix. If nothing in the chain is set, the command fails and says so,
+naming the file it looked for; there is no hardcoded default, because a
+wrong terminal is worse than a clear refusal.
 
 ### The editor is a build-time default with a runtime override
 
@@ -169,7 +183,7 @@ result, which this path has no way to check at all.
 | --- | --- |
 | `--line N` | Put the cursor on line N. `+N` on the command line for a launched instance, the equivalent over RPC for an existing one. |
 | `--socket PATH` | Use the instance listening on PATH. Step one of the rule. |
-| `--terminal COMMAND` | Terminal argv prefix for this invocation, overriding `$DOVETAIL_TERMINAL`. |
+| `--terminal COMMAND` | Terminal argv prefix for this invocation, overriding the environment and the terminal file. |
 | `--no-float` | Leave a launched window wherever the compositor puts it. |
 | `--print-socket` | Print the socket of the instance the file was shown in. |
 
@@ -179,7 +193,8 @@ result, which this path has no way to check at all.
 | --- | --- |
 | `DOVETAIL_SOCKET` | The instance to use, exactly as if `--socket` had been given. |
 | `DOVETAIL_TERMINAL` | Argv prefix that runs a command in a new terminal window. No default. |
-| `TERMINAL` | Fallback for the above. |
+| `XDG_CONFIG_HOME` | Where the declarative terminal file (`dovetail/terminal`) is looked for, before falling back to `~/.config`. |
+| `TERMINAL` | Fallback if none of the above resolves to a terminal. |
 | `DOVETAIL_EDITOR` | The editor to launch, overriding the build-time default. |
 | `XDG_RUNTIME_DIR` | Where instances announce themselves. Unset means no instance is discoverable; see `docs/module.md`. |
 | `SWAYSOCK` | Set by Sway. Unset means step two of the rule finds nothing. |

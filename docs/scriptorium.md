@@ -206,9 +206,24 @@ export DOVETAIL_TERMINAL="alacritty -e"
 export DOVETAIL_TERMINAL="kitty --"
 ```
 
-`$TERMINAL` is the fallback, and `--terminal` overrides both for one
-invocation. If none is set the command fails and says so: a wrong
-terminal is worse than a clear refusal.
+An environment variable never reaches a session a harness or a service
+manager spawned on your behalf, so there is also a declarative slot: the
+file `$XDG_CONFIG_HOME/dovetail/terminal`, falling back to
+`~/.config/dovetail/terminal` when `$XDG_CONFIG_HOME` is unset, parsed
+the same way as one argv prefix. A private layer managed with
+home-manager can write it declaratively:
+
+```nix
+xdg.configFile."dovetail/terminal".text = "foot -e";
+```
+
+The full precedence, first match wins: `--terminal`, then
+`$DOVETAIL_TERMINAL`, then that file, then `$TERMINAL`, which is the
+fallback of last resort — an ambient, generic setting a desktop
+environment may already have pointed at something that is not an argv
+prefix. If nothing in the chain is set the command fails and says so,
+naming the file it looked for: a wrong terminal is worse than a clear
+refusal.
 
 ### The REPL, which has one
 
@@ -359,7 +374,7 @@ note how often you actually needed to.
 | `TOPIC` | Required. A slug: lowercase letters and digits in hyphen-separated runs. |
 | `--scratch-dir DIR` | Where the scratch file lives, for this invocation. |
 | `--repl COMMAND` | The REPL to run beside the editor, shell-quoted argv. |
-| `--terminal COMMAND` | Terminal argv prefix, overriding `$DOVETAIL_TERMINAL`. |
+| `--terminal COMMAND` | Terminal argv prefix, overriding the environment and the terminal file. |
 
 ## Environment
 
@@ -367,7 +382,8 @@ note how often you actually needed to.
 | --- | --- |
 | `DOVETAIL_SCRATCH_DIR` | Where scratch files live. The private-layer slot. |
 | `DOVETAIL_TERMINAL` | Argv prefix that runs a command in a new terminal window. No default. |
-| `TERMINAL` | Fallback for the above. |
+| `XDG_CONFIG_HOME` | Where the declarative terminal file (`dovetail/terminal`) is looked for, before falling back to `~/.config`. |
+| `TERMINAL` | Fallback if none of the above resolves to a terminal. |
 | `DOVETAIL_REPL` | The REPL to run beside the editor, overriding the build-time `python3`. |
 | `DOVETAIL_EDITOR` | The editor to launch, overriding the build-time default. |
 | `XDG_DATA_HOME` | Where the scratch directory defaults to living under. |
