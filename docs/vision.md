@@ -121,13 +121,32 @@ construction. Deliberately bounded and low-authority: the agent
 arranges and co-edits, nothing outward-facing. Teardown is clean and
 leaves the scratch file behind.
 
-**M3 — the joint.** Extract the contract from what M1 and M2 actually
-called, as a document written for strangers: ensure an instance exists
-and is reachable; open a file, optionally at a line; create a scratch
-buffer bound to a file; read buffer contents; apply an edit through
-the editor; subscribe to or poll for changes; report what is open
-where; and one discovery affordance — given a session, where is your
-control socket and what protocol does it speak. The contract absorbs
+**M3 — the run verb.** A shared prompt, as M1 gave agent and
+resident a shared page: one verb opens a terminal holding a command
+the agent has composed — visible, editable, and not executed — above a
+comment naming who proposed it and why. Nothing runs until the
+resident presses Enter, and editing the line first or declining it
+outright are equal citizens. The reason it does not simply run the
+command is the comprehension principle: watching a command run teaches
+what is going on under the hood, and being told one ran teaches
+nothing, so in the domains the resident wants to grow in the posture
+is doing rather than being shown. The agent still closes the loop
+afterwards from artifact state, never from anyone's say-so. A
+pre-populated command habitually Entered would be the confirmation
+problem with the resident's privileges attached, and three bindings
+hold that off: the line is genuinely editable, the provenance is
+printed whether or not the caller supplied any, and what is displayed
+is what runs — text that could make those two differ is refused rather
+than repaired. Auto-run arrives through an authority taxonomy or not
+at all; there is no flag for it.
+
+**M4 — the joint.** Extract the contract from what M1, M2 and M3
+actually called, as a document written for strangers: ensure an
+instance exists and is reachable; open a file, optionally at a line;
+create a scratch buffer bound to a file; read buffer contents; apply an
+edit through the editor; subscribe to or poll for changes; report what
+is open where; and one discovery affordance — given a session, where is
+your control socket and what protocol does it speak. The contract absorbs
 protocol differences (msgpack-RPC vs. `emacsclient --eval`); it never
 leaks them. Alongside it: the provider slot as a module interface with
 Neovim as the default implementation, existing tooling refactored to
@@ -136,9 +155,9 @@ only — implement these verbs, here is how the Neovim provider does
 each one — the hook a stranger hangs an implementation on without us
 in the room.
 
-M3 must come last: the contract is extracted from M1 and M2, not
-imposed on them. Acceptance for each milestone lives in its numbered
-brief in `docs/tasks/`, not here.
+M4 must come last: the contract is extracted from the verbs M1, M2 and
+M3 actually called, not imposed on them. Acceptance for each milestone
+lives in its numbered brief in `docs/tasks/`, not here.
 
 ## Non-goals
 

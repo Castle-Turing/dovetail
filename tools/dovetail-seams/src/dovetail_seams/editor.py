@@ -4,7 +4,7 @@ Every line of this file is Neovim-specific, and it is the only file
 in Dovetail's tooling that is. Nothing else knows that the editor speaks msgpack-RPC,
 that its sockets are called `nvim-<pid>.sock`, or that a line number is
 spelled `+N` on its command line. The vision's fourth starting position
-makes the editor a slot rather than a hardcode, and M3 extracts the
+makes the editor a slot rather than a hardcode, and M4 extracts the
 contract from the verbs M1 and M2 actually called; that extraction is a
 great deal easier if the provider-shaped code already sits behind one
 seam.

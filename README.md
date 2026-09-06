@@ -13,7 +13,7 @@ where things are still made by hand, deliberately, in a world of
 matter compilers. The joinery reading — two pieces cut to interlock
 without fasteners — is the bonus meaning.
 
-**Status: pre-alpha.** Two artifacts exist. A nixvim module whose every
+**Status: pre-alpha.** A nixvim module whose every
 Neovim instance is born reachable over a socket, with treesitter and
 prose-friendly markdown defaults:
 
@@ -28,21 +28,32 @@ you are looking at, or in a new floating one if you are not:
 nix run github:Castle-Turing/dovetail#dovetail-show -- notes/today.md
 ```
 
-and the second, which builds a room for working through an idea: a
-durable scratch file in an editor tile, a REPL beside it, and the
-editor's socket printed so an agent can co-edit with you.
+the second, which builds a room for working through an idea: a durable
+scratch file in an editor tile, a REPL beside it, and the editor's
+socket printed so an agent can co-edit with you.
 
 ```
 nix run github:Castle-Turing/dovetail#dovetail-scriptorium -- parser-rewrite
 ```
 
+and the third, which hands you a command an agent has composed —
+pre-filled, editable, and not run until you press Enter:
+
+```
+nix run github:Castle-Turing/dovetail#dovetail-run -- \
+  --from "an agent session" --why "the flake needs rebuilding" \
+  "nixos-rebuild switch --flake .#castle"
+```
+
 Read [`docs/module.md`](docs/module.md) for what the module guarantees,
 the socket path scheme, and the overlay point where your own keymaps and
 colourscheme go; [`docs/show.md`](docs/show.md) for the show verb's
-targeting rule, the terminal you have to name, and its limitations; and
+targeting rule, the terminal you have to name, and its limitations;
 [`docs/scriptorium.md`](docs/scriptorium.md) for the scratch file
-convention, the layout rule and the co-editing recipe. The rest of the
-roadmap — the editor contract — is still design record; start with
+convention, the layout rule and the co-editing recipe; and
+[`docs/run.md`](docs/run.md) for the run verb's prompt contract, what it
+refuses and why there is no flag that skips the resident. The rest of
+the roadmap — the editor contract — is still design record; start with
 [`docs/vision.md`](docs/vision.md).
 
 ## Relation to Castle Turing
@@ -68,6 +79,7 @@ docs/module.md   Reference documentation for the module.
 docs/show.md     Reference documentation for the `show` verb.
 docs/scriptorium.md
                  Reference documentation for the `scriptorium` verb.
+docs/run.md      Reference documentation for the `run` verb.
 docs/vision.md   The founding context. Read it first.
 docs/backlog/    Deferred work, one plain-text file per item.
 docs/tasks/      Numbered briefs — the spec and reasoning for each
