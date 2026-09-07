@@ -50,10 +50,22 @@ NO_COMPOSITOR_LIVENESS_BUDGET = 2.0
 
 _LIVENESS_POLL_INTERVAL = 0.05
 
-_NO_TERMINAL = """no terminal is configured, and Dovetail will not guess one
+_TERMINAL_CONFIG_UNDER_XDG_CONFIG_HOME = ("dovetail", "terminal")
+_TERMINAL_CONFIG_UNDER_HOME = (".config", "dovetail", "terminal")
+
+# Shown when neither $XDG_CONFIG_HOME nor $HOME can be resolved, which in
+# practice means the environment is missing something POSIX guarantees;
+# the doc-form path is still useful to a reader diagnosing that.
+_TERMINAL_CONFIG_DOC_PATH = "$XDG_CONFIG_HOME/dovetail/terminal (or ~/.config/dovetail/terminal)"
+
+
+def _no_terminal_message(config_path: Path | None) -> str:
+    path_text = str(config_path) if config_path is not None else _TERMINAL_CONFIG_DOC_PATH
+    return f"""no terminal is configured, and Dovetail will not guess one
 
 Set $DOVETAIL_TERMINAL (or $TERMINAL) to the command that runs a program
-in a new terminal window, as an argv prefix. For example:
+in a new terminal window, as an argv prefix, or write it once to
+{path_text}. For example:
 
     export DOVETAIL_TERMINAL="foot -e"
     export DOVETAIL_TERMINAL="wezterm start --"
@@ -77,24 +89,93 @@ def split_argv(source: str, name: str) -> list[str]:
         ) from exc
 
 
+def _terminal_config_path(environ: os._Environ | dict) -> Path | None:
+    """Where the declarative terminal file lives, or None if unlocatable.
+
+    `$XDG_CONFIG_HOME/dovetail/terminal`, falling back to
+    `~/.config/dovetail/terminal` when `$XDG_CONFIG_HOME` is unset. None
+    only when neither it nor `$HOME` is set, in which case there is no
+    path to look at and the caller treats that the same as a file that
+    turned out not to exist.
+    """
+
+    config_home = environ.get("XDG_CONFIG_HOME")
+    if config_home and config_home.strip():
+        return Path(config_home.strip(), *_TERMINAL_CONFIG_UNDER_XDG_CONFIG_HOME)
+    home = environ.get("HOME")
+    if home and home.strip():
+        return Path(home.strip(), *_TERMINAL_CONFIG_UNDER_HOME)
+    return None
+
+
+def _terminal_config_argv(path: Path) -> list[str] | None:
+    """The argv prefix written in the terminal config file, or None.
+
+    None for a missing or blank file, mirroring how an unset or blank
+    environment variable is treated. A file that exists but cannot be
+    read, is not text, or names an argument containing a NUL byte is a
+    refusal rather than a fall-through: a present-but-broken
+    configuration is a fact the resident wants to hear, not skip past.
+    A NUL byte in particular is checked here rather than left for
+    `subprocess.Popen` to reject later, because a file can hold bytes an
+    environment variable never could, and by the time `Popen` sees it
+    the caller may already have created something on the strength of a
+    terminal that was never going to start.
+    """
+
+    try:
+        content = path.read_text()
+    except FileNotFoundError:
+        return None
+    except (OSError, UnicodeDecodeError) as exc:
+        raise DovetailError(f"could not read {path}: {exc}") from exc
+    if not content.strip():
+        return None
+    if "\0" in content:
+        raise DovetailError(f"{path} contains a NUL byte, which cannot appear in a command")
+    return split_argv(content, str(path))
+
+
 def terminal_argv(
     explicit: str | None, environ: os._Environ | dict = os.environ
 ) -> list[str]:
     """The argv prefix that runs a command in a new terminal window.
 
-    `--terminal`, then `$DOVETAIL_TERMINAL`, then `$TERMINAL`. Never a
-    hardcoded fallback: a wrong terminal is worse than a clear refusal,
-    and there is no terminal every reader of this file has installed.
+    `--terminal`, then `$DOVETAIL_TERMINAL`, then the declarative
+    terminal file (`$XDG_CONFIG_HOME/dovetail/terminal`, or
+    `~/.config/dovetail/terminal`), then `$TERMINAL`. Never a hardcoded
+    fallback: a wrong terminal is worse than a clear refusal, and there
+    is no terminal every reader of this file has installed.
+
+    The file sits below `$DOVETAIL_TERMINAL` but above `$TERMINAL`: it
+    is a deliberately written, Dovetail-specific setting, so it beats an
+    ambient, generic `$TERMINAL` a desktop environment may have set to
+    something that is not an argv prefix; but `$DOVETAIL_TERMINAL` is a
+    session-scoped choice made over the resident's own standing
+    configuration, so it wins when both are set.
     """
 
-    names = ("--terminal", "$DOVETAIL_TERMINAL", "$TERMINAL")
-    values = (explicit, environ.get("DOVETAIL_TERMINAL"), environ.get("TERMINAL"))
+    names = ("--terminal", "$DOVETAIL_TERMINAL")
+    values = (explicit, environ.get("DOVETAIL_TERMINAL"))
     for name, source in zip(names, values):
         if source and source.strip():
             argv = split_argv(source, name)
             if argv:
                 return argv
-    raise DovetailError(_NO_TERMINAL)
+
+    config_path = _terminal_config_path(environ)
+    if config_path is not None:
+        argv = _terminal_config_argv(config_path)
+        if argv:
+            return argv
+
+    source = environ.get("TERMINAL")
+    if source and source.strip():
+        argv = split_argv(source, "$TERMINAL")
+        if argv:
+            return argv
+
+    raise DovetailError(_no_terminal_message(config_path))
 
 
 def editor_command(environ: os._Environ | dict = os.environ) -> str:

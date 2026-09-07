@@ -53,6 +53,129 @@ class TestTerminalArgv:
             terminal_argv(None, {"DOVETAIL_TERMINAL": "   ", "TERMINAL": ""})
 
 
+class TestTerminalConfigFile:
+    """The declarative slot: $XDG_CONFIG_HOME/dovetail/terminal."""
+
+    def test_the_file_beats_terminal(self, tmp_path):
+        (tmp_path / "dovetail").mkdir()
+        (tmp_path / "dovetail" / "terminal").write_text("foot -e")
+        assert terminal_argv(
+            None, {"XDG_CONFIG_HOME": str(tmp_path), "TERMINAL": "xterm -e"}
+        ) == ["foot", "-e"]
+
+    def test_dovetail_terminal_beats_the_file(self, tmp_path):
+        (tmp_path / "dovetail").mkdir()
+        (tmp_path / "dovetail" / "terminal").write_text("foot -e")
+        assert terminal_argv(
+            None,
+            {
+                "XDG_CONFIG_HOME": str(tmp_path),
+                "DOVETAIL_TERMINAL": "wezterm start --",
+            },
+        ) == ["wezterm", "start", "--"]
+
+    def test_the_flag_beats_the_file(self, tmp_path):
+        (tmp_path / "dovetail").mkdir()
+        (tmp_path / "dovetail" / "terminal").write_text("foot -e")
+        assert terminal_argv(
+            "alacritty -e", {"XDG_CONFIG_HOME": str(tmp_path)}
+        ) == ["alacritty", "-e"]
+
+    def test_xdg_config_home_is_honored(self, tmp_path):
+        (tmp_path / "dovetail").mkdir()
+        (tmp_path / "dovetail" / "terminal").write_text("kitty --")
+        assert terminal_argv(None, {"XDG_CONFIG_HOME": str(tmp_path)}) == [
+            "kitty",
+            "--",
+        ]
+
+    def test_home_is_the_fallback_when_xdg_config_home_is_unset(self, tmp_path):
+        config_dir = tmp_path / ".config" / "dovetail"
+        config_dir.mkdir(parents=True)
+        (config_dir / "terminal").write_text("wezterm start --")
+        assert terminal_argv(None, {"HOME": str(tmp_path)}) == [
+            "wezterm",
+            "start",
+            "--",
+        ]
+
+    def test_a_missing_file_falls_through_to_terminal(self, tmp_path):
+        # No dovetail/terminal file was ever written under tmp_path.
+        assert terminal_argv(
+            None, {"XDG_CONFIG_HOME": str(tmp_path), "TERMINAL": "xterm -e"}
+        ) == ["xterm", "-e"]
+
+    def test_a_blank_file_falls_through_to_terminal(self, tmp_path):
+        (tmp_path / "dovetail").mkdir()
+        (tmp_path / "dovetail" / "terminal").write_text("   \n")
+        assert terminal_argv(
+            None, {"XDG_CONFIG_HOME": str(tmp_path), "TERMINAL": "xterm -e"}
+        ) == ["xterm", "-e"]
+
+    def test_a_trailing_newline_is_tolerated(self, tmp_path):
+        (tmp_path / "dovetail").mkdir()
+        (tmp_path / "dovetail" / "terminal").write_text("foot -e\n")
+        assert terminal_argv(None, {"XDG_CONFIG_HOME": str(tmp_path)}) == [
+            "foot",
+            "-e",
+        ]
+
+    def test_malformed_quoting_is_refused_naming_the_path(self, tmp_path):
+        (tmp_path / "dovetail").mkdir()
+        config_file = tmp_path / "dovetail" / "terminal"
+        config_file.write_text('foot -e "unclosed')
+        with pytest.raises(DovetailError) as caught:
+            terminal_argv(None, {"XDG_CONFIG_HOME": str(tmp_path)})
+        assert str(config_file) in str(caught.value)
+
+    def test_an_unreadable_file_is_refused_naming_the_path_and_error(self, tmp_path):
+        # A directory where the file is expected makes read_text() raise
+        # a genuine OSError, portably, without depending on permission
+        # bits (which root ignores).
+        config_file = tmp_path / "dovetail" / "terminal"
+        config_file.mkdir(parents=True)
+        with pytest.raises(DovetailError) as caught:
+            terminal_argv(None, {"XDG_CONFIG_HOME": str(tmp_path)})
+        message = str(caught.value)
+        assert str(config_file) in message
+        assert "could not read" in message
+
+    def test_undecodable_bytes_are_refused_naming_the_path(self, tmp_path):
+        config_file = tmp_path / "dovetail" / "terminal"
+        config_file.parent.mkdir(parents=True)
+        config_file.write_bytes(b"\xff\xfe not valid utf-8")
+        with pytest.raises(DovetailError) as caught:
+            terminal_argv(None, {"XDG_CONFIG_HOME": str(tmp_path)})
+        assert str(config_file) in str(caught.value)
+
+    def test_an_embedded_nul_byte_is_refused_naming_the_path(self, tmp_path):
+        # A NUL byte is content a file can hold that an environment
+        # variable never could; caught here rather than left for
+        # subprocess.Popen to reject after other side effects have run.
+        config_file = tmp_path / "dovetail" / "terminal"
+        config_file.parent.mkdir(parents=True)
+        config_file.write_bytes(b"foot\x00-e")
+        with pytest.raises(DovetailError) as caught:
+            terminal_argv(None, {"XDG_CONFIG_HOME": str(tmp_path)})
+        assert str(config_file) in str(caught.value)
+
+    def test_neither_source_set_falls_through_to_terminal(self):
+        # No $XDG_CONFIG_HOME and no $HOME: there is no path to look at,
+        # so this is the same as a file that does not exist.
+        assert terminal_argv(None, {"TERMINAL": "xterm -e"}) == ["xterm", "-e"]
+
+    def test_no_terminal_names_the_resolved_file_path(self, tmp_path):
+        with pytest.raises(DovetailError) as caught:
+            terminal_argv(None, {"XDG_CONFIG_HOME": str(tmp_path)})
+        assert str(tmp_path / "dovetail" / "terminal") in str(caught.value)
+
+    def test_no_terminal_names_the_doc_path_when_unresolvable(self):
+        with pytest.raises(DovetailError) as caught:
+            terminal_argv(None, {})
+        assert "$XDG_CONFIG_HOME/dovetail/terminal" in str(caught.value)
+        assert "~/.config/dovetail/terminal" in str(caught.value)
+
+
 class TestEditorCommand:
     def test_the_build_time_default(self):
         assert editor_command({}) == DEFAULT_EDITOR
