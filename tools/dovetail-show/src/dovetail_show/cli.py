@@ -28,8 +28,10 @@ _EPILOGUE = """\
 environment:
   DOVETAIL_SOCKET    the instance to use, as if --socket had been given
   DOVETAIL_TERMINAL  argv prefix that runs a command in a new terminal
-                     window, for example "foot -e"; $TERMINAL is the
-                     fallback and there is no hardcoded default
+                     window, for example "foot -e"; falls back to the
+                     declarative file at $XDG_CONFIG_HOME/dovetail/terminal
+                     (or ~/.config/dovetail/terminal), then to $TERMINAL,
+                     and there is no hardcoded default
   DOVETAIL_EDITOR    the editor to launch, overriding the build default
 
 See docs/show.md for the targeting rule and its known limitations."""
@@ -57,7 +59,10 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--terminal",
         metavar="COMMAND",
-        help="terminal argv prefix for a launch, overriding $DOVETAIL_TERMINAL",
+        help=(
+            "terminal argv prefix for a launch, overriding $DOVETAIL_TERMINAL "
+            "and the declarative terminal file"
+        ),
     )
     parser.add_argument(
         "--no-float",

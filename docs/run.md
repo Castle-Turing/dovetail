@@ -303,7 +303,7 @@ this verb's concern.
 
 | Wait | Bound | On expiry |
 | --- | --- | --- |
-| A new window appearing after a launch, when a compositor is reachable | 5 seconds | The window is left tiled and a warning goes to stderr. Exit status is still 0. A terminal that exited instead fails the command regardless of this wait. |
+| A new window appearing after a launch, when a compositor is reachable | 5 seconds | No window was seen; a warning goes to stderr. Exit status is still 0. A terminal that exited instead fails the command regardless of this wait. |
 | A spawned terminal's own liveness, when no compositor is reachable | 2 seconds | A terminal still running is presumed fine; exit status is 0. A terminal that exited with a nonzero status inside the window fails the command, naming that status. |
 
 Nothing waits for the resident. She may read the provenance block, go

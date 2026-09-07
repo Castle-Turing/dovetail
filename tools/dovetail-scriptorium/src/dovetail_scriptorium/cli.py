@@ -35,8 +35,10 @@ environment:
                         $XDG_DATA_HOME/dovetail/scratch, or
                         ~/.local/share/dovetail/scratch
   DOVETAIL_TERMINAL     argv prefix that runs a command in a new terminal
-                        window, for example "foot -e"; $TERMINAL is the
-                        fallback and there is no hardcoded default
+                        window, for example "foot -e"; falls back to the
+                        declarative file at $XDG_CONFIG_HOME/dovetail/terminal
+                        (or ~/.config/dovetail/terminal), then to $TERMINAL,
+                        and there is no hardcoded default
   DOVETAIL_REPL         the REPL to run beside the editor, overriding the
                         build default
   DOVETAIL_EDITOR       the editor to launch, overriding the build default
@@ -76,7 +78,10 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--terminal",
         metavar="COMMAND",
-        help="terminal argv prefix, overriding $DOVETAIL_TERMINAL",
+        help=(
+            "terminal argv prefix, overriding $DOVETAIL_TERMINAL and the "
+            "declarative terminal file"
+        ),
     )
     return parser
 
