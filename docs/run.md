@@ -7,7 +7,7 @@ Nothing runs until you press Enter.
 
 ```
 dovetail-run [--from NAME] [--why TEXT] [--terminal COMMAND]
-             [--no-float] COMMAND
+             [--no-float] [--record PATH] COMMAND
 ```
 
 It prints nothing when it works. The command's own output belongs to
@@ -218,8 +218,67 @@ it, edit it or decline it is yours to decide after the verb has
 returned. An agent that proposed the command closes the loop by looking
 at what the command was supposed to change.
 
-A durable record of what was proposed and what was actually run is
-deferred work, and does not exist yet.
+## The record
+
+`--record PATH` is how the agent that proposed a command closes the
+loop without asking anyone whether it ran: the delta between what was
+proposed and what was actually typed is the correction signal Castle
+Turing's evidence ranks above a rating, and this is where Dovetail keeps
+it.
+
+Given `--record PATH`, `dovetail-run` writes one JSON object to `PATH`
+once the interaction ends, for every ending the verb can act on:
+accepted, edited, declined by clearing the line, and end of input. Two
+endings the wrapper cannot act on write nothing: Ctrl-C takes the window
+with it without a word (see above), and a line that ends the wrapper's
+own process — one ending in a bare `exit`, or using `exec` — hands
+control to `exit`/`exec` before the wrapper's own next line ever runs.
+
+```json
+{
+  "proposed": "nixos-rebuild switch --flake .#castle",
+  "executed": "nixos-rebuild switch --flake .#castle --show-trace",
+  "declined": false,
+  "exit_status": 0,
+  "from": "an agent session",
+  "why": "the flake needs rebuilding",
+  "proposed_at": "2026-09-06T22:14:03Z",
+  "finished_at": "2026-09-06T22:14:41Z"
+}
+```
+
+The fields:
+
+| Field | Meaning |
+| --- | --- |
+| `proposed` | The command as proposed, verbatim. |
+| `executed` | The line actually run, verbatim; `null` if declined. |
+| `declined` | Whether the resident cleared the line or hit end of input instead of running anything. |
+| `exit_status` | The executed command's exit status; `null` if declined. |
+| `from`, `why` | The provenance, exactly as given to `--from`/`--why`; `null` when neither was passed. |
+| `proposed_at`, `finished_at` | ISO 8601 UTC timestamps: when the prompt was shown, and when this record was written. |
+
+It is JSON, not the `Key: value` lines the rest of this document favors,
+because a shell command can contain any text at all, and the record has
+to carry it without ambiguity.
+
+The file is written via a temporary file in the same directory, then an
+atomic rename, so a poller either finds no record yet or finds a whole
+one — never one that is half-written. Without `--record`, none of this
+happens: no file is written and nothing else about the verb changes.
+
+If `PATH`'s parent directory does not exist, `dovetail-run` refuses
+before opening any terminal, naming the path — creating directories on
+your behalf would be a guess about your layout this verb has no
+business making.
+
+This verb writes the file and nothing more. `dovetail-run` returns as
+soon as the prompt is on screen, long before the record exists — the
+resident may take an hour to press Enter — so a caller that wants the
+outcome polls for the file rather than waiting on the verb itself.
+Anything past that, such as a castle seat filing the record into its own
+journal, is the caller's business in the caller's repository; it is not
+this verb's concern.
 
 ## Options
 
@@ -229,6 +288,7 @@ deferred work, and does not exist yet.
 | `--why TEXT` | Why it is being proposed. Shown above the prompt; absent means "not stated". |
 | `--terminal COMMAND` | Terminal argv prefix for this invocation, overriding the environment and the terminal file. |
 | `--no-float` | Leave the new window wherever the compositor puts it. |
+| `--record PATH` | Write a JSON record of what was proposed and what actually ran to `PATH` once the interaction ends. See [The record](#the-record). Omit to write nothing. |
 
 ## Environment
 
@@ -261,10 +321,9 @@ is a bash script. Your login shell is irrelevant — the prompt runs the
 bash this flake built — but a command written for another shell's syntax
 will be run by bash, so write the line you would type into `sh`.
 
-**No record of what ran.** The delta between the command proposed and
-the command actually run is the correction signal worth keeping, and
-keeping it is deferred work, not yet a numbered task. Today the prompt
-is transient: the window closes and nothing remembers.
+**No record unless you ask for one.** Without `--record`, the prompt is
+transient: the window closes and nothing remembers what was proposed or
+what ran. See [The record](#the-record).
 
 **A terminal that daemonizes will not be floated.** Same as
 `dovetail-show`, for the same reason: a client that hands the request to
@@ -301,6 +360,13 @@ hardware or hands:
   the escape sequences out of the transcript and assert that the line
   *drawn on the screen* is byte-equal to the command that ran — the
   verb's one promise, checked the only way it can honestly be checked.
+  The same three interactive cases are also run with `--record`: the
+  accepted line's record has `proposed == executed`, the edited line's
+  has `proposed != executed`, the declined case's has `executed` and
+  `exit_status` both `null`, a fourth proposal made with no `--record`
+  writes no file at all, and a final check over everything this run
+  wrote confirms no temporary file from the atomic rename is left
+  behind.
 - **`run-launch-failure`** — the launch path on the no-compositor branch
   the sandbox always is: `--terminal false` fails the whole invocation
   and names the command and its status, `--terminal true` is left alone,
