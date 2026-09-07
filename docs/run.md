@@ -227,7 +227,12 @@ Turing's evidence ranks above a rating, and this is where Dovetail keeps
 it.
 
 Given `--record PATH`, `dovetail-run` writes one JSON object to `PATH`
-once the interaction ends — however it ends:
+once the interaction ends, for every ending the verb can act on:
+accepted, edited, declined by clearing the line, and end of input. Two
+endings the wrapper cannot act on write nothing: Ctrl-C takes the window
+with it without a word (see above), and a line that ends the wrapper's
+own process — one ending in a bare `exit`, or using `exec` — hands
+control to `exit`/`exec` before the wrapper's own next line ever runs.
 
 ```json
 {
