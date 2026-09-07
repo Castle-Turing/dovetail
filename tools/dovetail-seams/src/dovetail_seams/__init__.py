@@ -16,7 +16,7 @@ its steps run in:
 
 This package installs no executables. It exists so that `dovetail-show`
 and `dovetail-scriptorium` share one implementation of all of the above
-rather than two copies that drift, and so that M3's extraction of the
+rather than two copies that drift, and so that M4's extraction of the
 editor contract has one file to read rather than several.
 """
 

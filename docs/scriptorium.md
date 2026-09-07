@@ -267,7 +267,7 @@ because it is the thing M2 exists for and because getting the quoting
 wrong costs twenty minutes.
 
 **All of this is Neovim-specific**, which is why it is a recipe in a
-document rather than a feature of the verb. When M3 extracts the editor
+document rather than a feature of the verb. When M4 extracts the editor
 contract, "read the buffer" and "write through the buffer" are two of
 the verbs it will name, and this section is the evidence for what they
 have to do. Until then, the calls below are the Neovim provider's, and a
@@ -364,7 +364,7 @@ session actually wants one.
 
 So it is deliberately not built. When a session demands it, the change
 is a new capability behind the editor seam, and the first flag in the
-optional-capability set M3's contract describes. Until then, poll, and
+optional-capability set M4's contract describes. Until then, poll, and
 note how often you actually needed to.
 
 ## Options
