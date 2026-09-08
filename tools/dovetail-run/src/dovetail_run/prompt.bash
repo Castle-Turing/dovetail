@@ -120,8 +120,10 @@ fi
 # still run by bash, recorder or not. `-e` hands back the command's own
 # exit status rather than script's; `-q` only quiets script's own
 # start/done banner on screen, not in the transcript file, which still
-# opens and closes with it. The `--` stops a transcript path that
-# happens to start with `-` from being parsed as another option.
+# opens and closes with it. A transcript path that happens to start
+# with `-` is prefixed with `./` rather than guarded with `--`,
+# because `script` gives `--` a meaning of its own — a `-- program`
+# form that util-linux rejects as mutually exclusive with `-c`.
 #
 # `script` can fail before `$line` ever starts — its destination
 # already a directory, unwritable, or gone missing underneath it — and
@@ -131,8 +133,9 @@ fi
 # as far as running anything, and the line that was accepted must not
 # be reported as though it had.
 if [ -n "$transcript_path" ]; then
+    case "$transcript_path" in -*) transcript_path="./$transcript_path" ;; esac
     rm -f -- "$transcript_path"
-    SHELL="$BASH" "$recorder" -qec "$line" -- "$transcript_path"
+    SHELL="$BASH" "$recorder" -qec "$line" "$transcript_path"
     status=$?
     if [ ! -f "$transcript_path" ]; then
         printf 'dovetail-run: the recorder could not open the transcript at %s; nothing was run\n' "$transcript_path" >&2
