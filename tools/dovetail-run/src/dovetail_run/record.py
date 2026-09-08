@@ -1,11 +1,13 @@
 """The record: what was proposed, and what the resident actually ran.
 
-Two things live here, and they are pure on purpose so both are checkable
-without a terminal: `check_record_path`, which is `cli.py`'s refusal for
-a `--record` PATH whose parent directory does not exist, and
-`build_record`, which is the one dict shape the JSON file ever takes.
+Three things live here, and the first two are pure on purpose so both are
+checkable without a terminal: `check_record_path`, which is `cli.py`'s
+refusal for a `--record` PATH whose parent directory does not exist;
+`transcript_path_for`, which names the transcript file beside the record
+from the record path alone; and `build_record`, which is the one dict
+shape the JSON file ever takes.
 
-The third thing, `main`, is not pure — it is a standalone script, shipped
+The fourth thing, `main`, is not pure — it is a standalone script, shipped
 as package data beside `prompt.bash` rather than imported by it, because
 the wrapper outlives `dovetail-run` itself. The verb returns as soon as
 the prompt is on screen; only the wrapper is still running when the
@@ -14,7 +16,7 @@ file, by an absolute interpreter path baked in the same way `bash` is
 substituted into `defaults.py` — the resident's terminal may put no
 Python at all, or a different one, on its `$PATH`.
 
-`main` takes its nine fields positionally rather than as `--flags`,
+`main` takes its ten fields positionally rather than as `--flags`,
 because a proposed or executed command is free to start with a dash
 ("`-rf /tmp/x`" is a plausible whole line to propose), and argparse's
 option-matching would rather guess than take that literally.
@@ -30,7 +32,7 @@ from pathlib import Path
 
 from dovetail_seams.errors import DovetailError
 
-_FIELD_COUNT = 9
+_FIELD_COUNT = 10
 
 
 def check_record_path(path: str) -> Path:
@@ -51,12 +53,25 @@ def check_record_path(path: str) -> Path:
     return record_path
 
 
+def transcript_path_for(record_path: Path) -> Path:
+    """Where the transcript beside `record_path` lives.
+
+    Named from the record path alone — `.transcript` appended to the
+    whole name — so the two files sit side by side under whatever name
+    the caller chose for the record, with no guess about the record's
+    own extension (or lack of one).
+    """
+
+    return record_path.with_name(record_path.name + ".transcript")
+
+
 def build_record(
     *,
     proposed: str,
     executed: str | None,
     declined: bool,
     exit_status: int | None,
+    transcript: str | None,
     from_: str | None,
     why: str | None,
     proposed_at: str,
@@ -67,8 +82,9 @@ def build_record(
     Field order here is the field order in `docs/run.md` and in the
     file on disk — not load-bearing to a JSON parser, but a human
     reading the record with their eyes gets the story in the order it
-    happened: what was proposed, what ran, whether it was declined, and
-    how it went.
+    happened: what was proposed, what ran, whether it was declined, how
+    it went, and where its transcript is. `transcript` is `None` exactly
+    when `executed` is: a declined prompt captures nothing to point at.
     """
 
     return {
@@ -76,6 +92,7 @@ def build_record(
         "executed": executed,
         "declined": declined,
         "exit_status": exit_status,
+        "transcript": transcript,
         "from": from_,
         "why": why,
         "proposed_at": proposed_at,
@@ -119,6 +136,7 @@ def main(argv: list[str] | None = None) -> int:
         proposed,
         executed,
         exit_status,
+        transcript,
         from_,
         why,
         proposed_at,
@@ -131,6 +149,7 @@ def main(argv: list[str] | None = None) -> int:
         executed=None if declined else executed,
         declined=declined,
         exit_status=None if declined else int(exit_status),
+        transcript=None if declined else (transcript or None),
         from_=from_ or None,
         why=why or None,
         proposed_at=proposed_at,

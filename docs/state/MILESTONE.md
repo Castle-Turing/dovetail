@@ -76,11 +76,13 @@ the composed command without the resident's keypress.
   listing, not an inference — but still sit at the top level of
   `docs/tasks/`. Sweeping them is hygiene per `docs/tasks/README.md`,
   left for whoever next tidies the queue.
-- Open, unmerged, at the top level: task 0012 ("the record carries a
-  transcript," extending task 0010 — the apparent last piece of
-  `[m3-done]`), still only an untracked file in the primary checkout —
-  not on `origin/main` nor on any fetched remote branch, verified
-  directly. [stated 2026-09-08, via the operator's session] Task 0013
+- Open, unmerged: task 0012 ("the record carries a transcript,"
+  extending task 0010 — the apparent last piece of `[m3-done]`) is
+  implemented on branch `emcee/0012-the-record-carries-a-transcript`,
+  brief committed at `docs/tasks/0012-the-record-carries-a-transcript.md`
+  — checked directly against this checkout's `git log` and `git
+  status`, not an inference — but not yet merged into `origin/main` nor
+  visible on any other fetched remote branch. Task 0013
   ("an AI pair-programming seat"), added 2026-09-07 out of the Castle
   Turing conversation-seat elicitation, built toward neither `[m3-done]`
   nor any M4 clause (M4 has none yet); [stated 2026-09-08, via the

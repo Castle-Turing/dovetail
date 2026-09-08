@@ -34,6 +34,14 @@
 # writes no file — and a final one is over every record written by this
 # check: no temporary file from the atomic-rename step is left behind,
 # which is what "never a half-written record" comes down to on disk.
+#
+# Task 0012 adds the transcript: an accepted command's own output ends
+# up in a file beside the record, the record's `transcript` field names
+# it, a nonzero exit status is the command's own rather than the
+# recorder's, and a declined prompt leaves both `transcript: null` in
+# the record and no transcript file on disk at all — this is the one
+# place a real pty is running end to end, since `script` itself needs
+# one.
 {
   runCommand,
   python3,
@@ -130,8 +138,64 @@ runCommand "dovetail-run-prompt"
     assert_record enter.record.json executed "$enter_command"
     assert_record enter.record.json declined false
     assert_record enter.record.json exit_status 0
+    assert_record enter.record.json transcript "$PWD/enter.record.json.transcript"
     assert_record enter.record.json from "the run-prompt check"
     assert_record enter.record.json why "proving that what is displayed is what runs"
+    if [ ! -f enter.record.json.transcript ]; then
+      echo "FAIL: --record was given but no transcript file was ever written"
+      exit 1
+    fi
+
+    echo "--- --record captures a transcript of what the resident saw"
+    transcript_command="printf 'TRANSCRIPT-MARKER\n'"
+    propose transcript.cap '\r' "$PWD/transcript.record.json" "$transcript_command"
+    transcript_file="$PWD/transcript.record.json.transcript"
+    if [ ! -f "$transcript_file" ]; then
+      echo "FAIL: no transcript file was written at $transcript_file"
+      exit 1
+    fi
+    grep -q "TRANSCRIPT-MARKER" "$transcript_file" || {
+      echo "FAIL: the transcript does not contain the command's own output:"
+      cat "$transcript_file"
+      exit 1
+    }
+    assert_record transcript.record.json transcript "$transcript_file"
+    assert_record transcript.record.json exit_status 0
+    grep -q "recorded" transcript.cap || {
+      echo "FAIL: the provenance block did not say the session is being recorded"
+      cat transcript.cap
+      exit 1
+    }
+
+    echo "--- a nonzero exit status is the command's own, not the recorder's"
+    # The sleep clears dovetail-run's own no-compositor liveness watch
+    # (NO_COMPOSITOR_LIVENESS_BUDGET, 2 seconds): the pty-terminal
+    # stand-in's own exit status mirrors the wrapper's, which mirrors
+    # the command's, so an instantly-exiting nonzero command would look
+    # to dovetail-run exactly like a terminal that died — a property of
+    # this stand-in, not of a real terminal emulator, which does not
+    # exit when the command inside it does.
+    propose failstatus.cap '\r' "$PWD/failstatus.record.json" "sleep 3; exit 3"
+    assert_record failstatus.record.json exit_status 3
+    assert_record failstatus.record.json transcript "$PWD/failstatus.record.json.transcript"
+    if [ ! -f "$PWD/failstatus.record.json.transcript" ]; then
+      echo "FAIL: a nonzero exit status left no transcript behind"
+      exit 1
+    fi
+
+    echo "--- a declined prompt under --record captures no transcript"
+    decline_record_command="printf %s SHOULD-NOT-RUN > $PWD/declined-record.txt"
+    propose declinerecord.cap '\x15\r' "$PWD/declinerecord.record.json" "$decline_record_command"
+    assert_record declinerecord.record.json transcript null
+    assert_record declinerecord.record.json executed null
+    if [ -e "$PWD/declinerecord.record.json.transcript" ]; then
+      echo "FAIL: a declined prompt left a transcript file behind"
+      exit 1
+    fi
+    if [ -e declined-record.txt ]; then
+      echo "FAIL: a declined command under --record ran anyway"
+      exit 1
+    fi
 
     echo "--- an edited line runs the edited line"
     edit_command="printf %s EDIT > $PWD/edit.txt"
@@ -147,6 +211,7 @@ runCommand "dovetail-run-prompt"
     assert_record edit.record.json executed "$edit_command$edit_suffix"
     assert_record edit.record.json declined false
     assert_record edit.record.json exit_status 0
+    assert_record edit.record.json transcript "$PWD/edit.record.json.transcript"
     if [ "$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(d["proposed"] != d["executed"])' edit.record.json)" != "True" ]; then
       echo "FAIL: an edited command's record has proposed == executed"
       exit 1

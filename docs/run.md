@@ -240,6 +240,7 @@ control to `exit`/`exec` before the wrapper's own next line ever runs.
   "executed": "nixos-rebuild switch --flake .#castle --show-trace",
   "declined": false,
   "exit_status": 0,
+  "transcript": "/var/lib/castle/records/nixos-rebuild.json.transcript",
   "from": "an agent session",
   "why": "the flake needs rebuilding",
   "proposed_at": "2026-09-06T22:14:03Z",
@@ -255,6 +256,7 @@ The fields:
 | `executed` | The line actually run, verbatim; `null` if declined. |
 | `declined` | Whether the resident cleared the line or hit end of input instead of running anything. |
 | `exit_status` | The executed command's exit status; `null` if declined. |
+| `transcript` | Path to the transcript file beside the record (see [The transcript](#the-transcript)); `null` if declined. |
 | `from`, `why` | The provenance, exactly as given to `--from`/`--why`; `null` when neither was passed. |
 | `proposed_at`, `finished_at` | ISO 8601 UTC timestamps: when the prompt was shown, and when this record was written. |
 
@@ -280,6 +282,55 @@ Anything past that, such as a castle seat filing the record into its own
 journal, is the caller's business in the caller's repository; it is not
 this verb's concern.
 
+### The transcript
+
+The record's own fields say *that* a command ran and *what its exit
+status was*. They say nothing about what happened on screen while it
+ran — and an exit status of 0 is not the same claim as "this did what it
+was supposed to". The incident that prompted this feature was exactly
+that gap: a rebuild the resident ran appeared to succeed while having
+silently done nothing, and the agent that proposed it had no way to see
+what she saw.
+
+So, only when `--record PATH` is given, the accepted line runs under a
+pty recorder — `script -qec` — instead of directly. The command still
+believes it has a real terminal, so progress bars, prompts and color
+survive exactly as they would without `--record`; everything drawn to
+that terminal is also captured to a transcript file beside the record,
+named `PATH` with `.transcript` appended (`record.json` gets
+`record.json.transcript`).
+
+The transcript is its own file, not a field in the JSON record: a
+rebuild's output can run to megabytes, and the record has to stay a
+small thing a poller reads cheaply. What the record carries is one
+field, `transcript`, naming the file — or `null` when nothing was
+captured, which is any declined interaction: a cleared line or end of
+input closes the window without running anything, so there is nothing
+to record.
+
+**Ordering is the contract.** The record is written — atomically, as
+above — only after the command has finished and its transcript is
+complete. A poller that waits for the record and then reads the file
+`transcript` names never finds a partial transcript; by the time the
+record exists, `script` has already exited.
+
+**The exit status is still the command's own.** `script -e` (folded
+into `-qec`) hands back the child's exit status rather than
+substituting its own, so `exit_status` in the record means exactly what
+it means without `--record`, including when it is nonzero.
+
+**Unechoed input is not captured.** A pty transcript contains what the
+terminal actually drew — which is to say, what was echoed. A program
+that disables terminal echo before reading a secret, the way a password
+prompt does, never has those keystrokes appear in the transcript,
+because they were never drawn in the first place; `script` cannot
+record what the terminal itself never showed.
+
+**The resident is told up front.** The provenance block gains a fifth
+line whenever `--record` is given — "This session's output is being
+recorded for the proposing agent." — printed before the prompt, so
+capture is never something she discovers after the fact.
+
 ## Options
 
 | Option | Meaning |
@@ -288,7 +339,7 @@ this verb's concern.
 | `--why TEXT` | Why it is being proposed. Shown above the prompt; absent means "not stated". |
 | `--terminal COMMAND` | Terminal argv prefix for this invocation, overriding the environment and the terminal file. |
 | `--no-float` | Leave the new window wherever the compositor puts it. |
-| `--record PATH` | Write a JSON record of what was proposed and what actually ran to `PATH` once the interaction ends. See [The record](#the-record). Omit to write nothing. |
+| `--record PATH` | Write a JSON record of what was proposed and what actually ran to `PATH` once the interaction ends, and capture the accepted command's own terminal output to a transcript beside it. See [The record](#the-record) and [The transcript](#the-transcript). Omit to write nothing. |
 
 ## Environment
 
@@ -321,9 +372,10 @@ is a bash script. Your login shell is irrelevant — the prompt runs the
 bash this flake built — but a command written for another shell's syntax
 will be run by bash, so write the line you would type into `sh`.
 
-**No record unless you ask for one.** Without `--record`, the prompt is
-transient: the window closes and nothing remembers what was proposed or
-what ran. See [The record](#the-record).
+**No record, and no transcript, unless you ask for one.** Without
+`--record`, the prompt is transient: the window closes and nothing
+remembers what was proposed, what ran, or what it printed. See
+[The record](#the-record) and [The transcript](#the-transcript).
 
 **A terminal that daemonizes will not be floated.** Same as
 `dovetail-show`, for the same reason: a client that hands the request to
@@ -366,7 +418,13 @@ hardware or hands:
   `exit_status` both `null`, a fourth proposal made with no `--record`
   writes no file at all, and a final check over everything this run
   wrote confirms no temporary file from the atomic rename is left
-  behind.
+  behind. Three more cases prove the transcript: an accepted command
+  with distinctive output produces a transcript file containing it and
+  a record whose `transcript` field names that file, alongside the
+  provenance block having said recording was active; a nonzero exit
+  status in the record is the command's own rather than the recorder's;
+  and a declined line under `--record` leaves `transcript: null` in the
+  record and no transcript file on disk.
 - **`run-launch-failure`** — the launch path on the no-compositor branch
   the sandbox always is: `--terminal false` fails the whole invocation
   and names the command and its status, `--terminal true` is left alone,
@@ -379,7 +437,7 @@ checklist below.
 
 ## Confirming it by hand
 
-Four steps on a real Sway desktop. Two minutes.
+Five steps on a real Sway desktop. Three minutes.
 
 1. **Set your terminal**, if you have not already:
    `export DOVETAIL_TERMINAL="foot -e"` — your terminal, not necessarily
@@ -396,3 +454,13 @@ Four steps on a real Sway desktop. Two minutes.
 4. **Decline**: propose anything, press Ctrl-U to clear the line, and
    press Enter. The window should say the line was cleared and that
    nothing was run, and close.
+5. **Watch a genuinely interactive command under `--record`**: something
+   with a progress bar or a color-coded status (`nixos-rebuild switch
+   --flake .#castle`, or anything similar you have on hand) proposed
+   with `--record /tmp/run-check.json`. The provenance block should say
+   the session is being recorded, and the command should behave exactly
+   as it does without `--record` — colors, cursor movement and progress
+   bars all working normally. If the command prompts for a sudo
+   password, type it: the prompt itself should appear in
+   `/tmp/run-check.json.transcript` afterwards, and the password you
+   typed should not.
