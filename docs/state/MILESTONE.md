@@ -78,26 +78,27 @@ the composed command without the resident's keypress.
   left for whoever next tidies the queue.
 - Open, unmerged, at the top level: task 0012 ("the record carries a
   transcript," extending task 0010 — the apparent last piece of
-  `[m3-done]`) and task 0013 ("an AI pair-programming seat"). Both
-  exist only as untracked files in the primary checkout — neither is on
-  `origin/main` nor on any fetched remote branch, verified directly.
-  [stated 2026-09-08, via the operator's session] Task 0013 was added
-  2026-09-07 by the operator's session, out of the Castle Turing
-  conversation-seat elicitation, and builds toward neither `[m3-done]`
-  nor any M4 clause (M4 has none yet) — an addition outside the roadmap
-  sequence, not fit into either bucket by this document.
+  `[m3-done]`), still only an untracked file in the primary checkout —
+  not on `origin/main` nor on any fetched remote branch, verified
+  directly. [stated 2026-09-08, via the operator's session] Task 0013
+  ("an AI pair-programming seat"), added 2026-09-07 out of the Castle
+  Turing conversation-seat elicitation, built toward neither `[m3-done]`
+  nor any M4 clause (M4 has none yet); [stated 2026-09-08, via the
+  operator's session] the resident resolved that fit question by
+  parking task 0013 out of the queue entirely, handled outside this PR.
 - [stated 2026-09-08, via the operator's session] Migration to the
   `docs/state/` conventions this PR adds was ordered before the next
   sprint launches. [stated 2026-09-08, via the operator's session] The
-  `Milestone:` header now means exclusively a clause key from this
-  file, or the explicit value `none — hygiene`; the roadmap-name form
-  (`M1`/`M2`/`M3`) and the phrase `none — repository mechanism` are
-  retired — see `docs/tasks/README.md`.
-- **Left unresolved, not retrofitted:** tasks 0006 (`Milestone: M2`)
-  and 0007 (`Milestone: M1`) predate this document and cite already-
-  achieved milestones with no live clause key here — this file records
-  only current truth, and M1/M2 are historical. Neither a clause-key
-  citation nor `none — hygiene` honestly describes them: they were
-  substantive milestone work, not hygiene, and nothing here is still
-  true of them to cite. Task 0014's brief flags this rather than
-  forcing either value.
+  `Milestone:` header means exclusively a clause key from this file, or
+  the explicit value `none — hygiene`, binding on every task file
+  written from that date forward; the roadmap-name form (`M1`/`M2`/`M3`)
+  and the phrase `none — repository mechanism` are retired for new
+  files — see `docs/tasks/README.md`.
+- **Resolved:** tasks 0006 (`Milestone: M2`) and 0007 (`Milestone: M1`)
+  predate this document and cite already-achieved milestones with no
+  live clause key here. [stated 2026-09-08, via the operator's session]
+  The resident ruled: a file written before the 2026-09-08 ruling keeps
+  its retired value standing as record of the convention at the time it
+  was written; only files written after the ruling must use the
+  clause-key form. 0006 and 0007 (and, on the same basis, 0001, 0002,
+  0004, 0005) are untouched by design, not by omission.

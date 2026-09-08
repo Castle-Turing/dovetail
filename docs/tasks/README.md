@@ -25,20 +25,25 @@ task that serves nothing there — adopted from Castle Turing task 0061.
 A task derived from a state clause cites its key (e.g. `m3-done`) so a
 clause revision identifies exactly which queued tasks it invalidates.
 
-**Ruled by the resident, 2026-09-08:** this is the single form. Task
-files had already been using a `Milestone:` header since task 0001,
-with values that were a bare roadmap-milestone name from
-`docs/vision.md` (`M1`, `M2`, `M3`) or the explicit phrase `none —
-repository mechanism` (task 0004) — that form is now retired, and the
-tracked queue was retrofitted to the clause-key form in the same PR
-that made this ruling (task 0014), except for two files flagged there
-rather than forced (0006, 0007 — see that brief). Six files still carry
-a retired value and were deliberately left untouched, since their
-values are the resident's to assign, not a migration's to overwrite:
-0001, 0002, 0005, 0006 and 0007 carry the retired roadmap-name form,
-and 0004 carries the retired `none —` phrase. A reader meeting one of
-these in `done/` or in history should read it as the pre-2026-09-08
-convention, not the current one.
+**Ruled by the resident, 2026-09-08:** this is the single form, binding
+on every task file *written from this date forward*. Task files had
+already been using a `Milestone:` header since task 0001, with values
+that were a bare roadmap-milestone name from `docs/vision.md` (`M1`,
+`M2`, `M3`) or the explicit phrase `none — repository mechanism` (task
+0004) — that form is retired for new files. The tracked queue was
+retrofitted to the clause-key form in the same PR that made this ruling
+(task 0014) wherever a clause fit honestly (0008–0011); two files
+(0006, 0007) could not be retrofitted without misrepresenting them —
+see that brief — and the resident's second ruling, also 2026-09-08,
+settled those: **a file written before this ruling keeps its retired
+value standing, as record of what the convention was when it was
+written; only files written after the ruling must use the clause-key
+form.** Nothing is retrofitted onto files outside 0008–0011 as a
+result. Six files carry a retired value on this basis and stay that
+way: 0001, 0002, 0005, 0006 and 0007 carry the retired roadmap-name
+form, and 0004 carries the retired `none —` phrase. A reader meeting
+one of these in `done/` or in history should read it as record of the
+pre-2026-09-08 convention, not as a gap to close.
 
 Numbers are allocated by checking this directory at write time —
 **including `done/`**. The sequence never restarts and a number is never

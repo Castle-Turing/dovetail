@@ -128,50 +128,50 @@ not settled:
   for the explicit non-milestone value — the clearest assignment of the
   four.
 
-## Left unresolved, not retrofitted
+## 0006/0007's retired values: resolved by the resident's second ruling
 
-Two tracked files were in scope for the retrofit and were deliberately
-left untouched, because forcing either allowed value would misstate
-them:
+Two tracked files were in the retrofit's stated scope (0006–0011) and
+were left untouched in this brief's earlier version, because forcing
+either allowed value would have misstated them: **0006** ("scriptorium",
+`Milestone: M2`) and **0007** ("launch failures are loud on every path",
+`Milestone: M1`) both cite already-achieved milestones, and
+`docs/state/MILESTONE.md` records only *current* truth — it has no live
+M1 or M2 clause key for them to cite, and `none — hygiene` would
+misrepresent them as tidying when both were substantive milestone work.
+That was reported to the resident as an open question rather than
+resolved silently.
 
-- **0006** ("scriptorium", `Milestone: M2`) and **0007** ("launch
-  failures are loud on every path", `Milestone: M1`) both cite already-
-  achieved milestones. `docs/state/MILESTONE.md` records only *current*
-  truth — it has no live M1 or M2 clause key for them to cite, the same
-  way Castle Turing's own `MILESTONE.md` keeps no clause for its
-  achieved Milestone 1. `none — hygiene` would misrepresent them:
-  both were substantive milestone work, not tidying. Retrofitting them
-  would require either inventing historical clause keys in
-  `MILESTONE.md` for milestones that are no longer current — a new
-  accommodation this brief did not judge itself entitled to make
-  unilaterally — or some other resolution the resident has not stated.
-  `docs/state/MILESTONE.md`'s Position section records this as
-  unresolved rather than choosing silently.
+**The resident ruled, 2026-09-08: "Just let retired values stand on
+pre-ruling files as record."** 0006 and 0007 keep their `M2`/`M1`
+values untouched; no historical clause keys are added to
+`MILESTONE.md`. The same ruling covers the four files that were never
+in the retrofit's stated scope and were left alone regardless: 0001,
+0002, 0005 (`Milestone: M1`) and 0004 (`Milestone: none — repository
+mechanism`). `docs/tasks/README.md`'s retired-values note now states
+this as the rule, not as an open question: a file written before the
+2026-09-08 ruling keeps its retired value as record of the convention
+at the time it was written; only files written after the ruling must
+use the clause-key form.
 
-Four more files were never in the retrofit's stated scope (0006–0011)
-and were left alone entirely, still carrying retired values: **0001**,
-**0002**, **0005** (`Milestone: M1`) and **0004** (`Milestone: none —
-repository mechanism`). Whether the resident wants these brought
-forward too, on the same terms as 0006/0007 above, is open.
+## The untracked files (0012, 0013)
 
-## Proposed values for the untracked files (0012, 0013) — not applied here
+Task 0012 ("the record carries a transcript") exists only as an
+untracked file in the primary checkout, on neither `origin/main` nor
+any fetched remote branch; this branch cannot reach it, and this PR
+does not touch it. Proposed value, for whoever does apply it: `m3-done`
+— it extends 0010 (`Requires: 0010`) and is the transcript clause
+`[m3-done]` names explicitly, the same reasoning as 0008–0010.
 
-Tasks 0012 and 0013 exist only as untracked files in the primary
-checkout, on neither `origin/main` nor any fetched remote branch; this
-branch cannot reach them, and this PR does not touch them. Proposed
-values, for the record and for whoever does apply them:
-
-- **0012** ("the record carries a transcript") → `m3-done`, same
-  reasoning as 0008–0010: it extends 0010 (`Requires: 0010`) and is the
-  transcript clause `[m3-done]` names explicitly.
-- **0013** ("an AI pair-programming seat in the editor") → no clean fit.
-  It builds toward neither `[m3-done]` (the run verb) nor any M4 clause
-  (M4 has none yet — "the joint" has no task file). It is not hygiene
-  either: it is substantive feature work, from the Castle Turing
-  conversation-seat elicitation, sitting outside the M1–M4 roadmap
-  sequence entirely. Forcing `none — hygiene` on it would carry the
-  same misrepresentation risk as forcing it on 0006/0007. This is
-  reported rather than resolved.
+Task 0013 ("an AI pair-programming seat in the editor") built toward
+neither `[m3-done]` (the run verb) nor any M4 clause (M4 has none yet
+— "the joint" has no task file), and was not hygiene either: it was
+substantive feature work from the Castle Turing conversation-seat
+elicitation, sitting outside the M1–M4 roadmap sequence entirely. That
+fit question was reported rather than resolved here. The resident
+resolved it by parking task 0013 out of the queue entirely, handled
+outside this branch — it is not part of dovetail's open work as of this
+writing, and this brief's migration-debt accounting for the 0006–0013
+range excludes it on that basis rather than by oversight.
 
 ## What was deliberately left out
 
@@ -198,11 +198,10 @@ values, for the record and for whoever does apply them:
   (plus the M3-specific auto-run exclusion `docs/vision.md` states
   directly) is reported as `[m3-out]` (scope) rather than manufactured
   into `[m3-constraints]` (binding rules with waiver authority).
-- **No new historical clause keys for M1/M2 in `MILESTONE.md`.** See
-  "Left unresolved, not retrofitted" above — adding them would resolve
-  0006/0007's citation cleanly, but it is a real accommodation to the
-  state layer's shape and stays the resident's call, not a byproduct of
-  a header retrofit.
+- **No new historical clause keys for M1/M2 in `MILESTONE.md`.** Would
+  have resolved 0006/0007's citation cleanly, but the resident ruled
+  the simpler answer instead: retired values on pre-ruling files stand
+  as record — see "0006/0007's retired values" above.
 
 ## Verification
 
@@ -216,6 +215,7 @@ a clause key that actually exists in `docs/state/MILESTONE.md`). Needs
 the resident: this PR's description asks explicitly that every
 `[inferred]` clause in `docs/state/MILESTONE.md` be checked against
 what the resident actually knows to be true, and that the four
-retrofit proposals above and the two unresolved cases be confirmed or
-reassigned — nothing here should be treated as settled until that pass
-happens.
+retrofit proposals on 0008–0011 be confirmed or reassigned — the
+`Milestone:` header convention itself and the 0006/0007 question are
+now resident-ruled, not open, but the specific clause-key choices on
+0008–0011 remain proposals until reviewed.
