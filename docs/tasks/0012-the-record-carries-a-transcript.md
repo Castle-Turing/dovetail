@@ -196,3 +196,21 @@ emulator, which does not exit when the command running inside it does.
 The sleep clears the 2-second window so the check exercises what the
 brief actually asks about (the record's `exit_status`), not the
 liveness watch.
+
+**A cross-vendor review of this PR found that `script`'s own setup
+failures could be reported as the command's exit status, and that a
+reused `--record PATH` could leave a stale transcript behind a declined
+record.** Both are bugs in what this brief already promised ("the exit
+status in the record stays the command's own"; "`null` when nothing
+ran"), not new scope: `write_record` now removes any stale transcript
+before writing a declined record, and the accepted-line branch clears
+the transcript path first and checks that `script` actually produced a
+file before trusting its exit status, reporting a `script` setup
+failure as a declined record with a stderr diagnostic rather than a
+fabricated command result. The same review also found that
+`docs/run.md`'s existing claim about a bare `exit`/`exec` ending the
+wrapper before any record is written was only ever true without
+`--record` — under `--record` the accepted line now runs inside
+`script`'s own child shell, so `exit`/`exec` end only that child and
+the wrapper writes a record as usual; `docs/run.md` is corrected to say
+so rather than carrying a claim this task's own change made false.

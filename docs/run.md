@@ -228,11 +228,26 @@ it.
 
 Given `--record PATH`, `dovetail-run` writes one JSON object to `PATH`
 once the interaction ends, for every ending the verb can act on:
-accepted, edited, declined by clearing the line, and end of input. Two
-endings the wrapper cannot act on write nothing: Ctrl-C takes the window
-with it without a word (see above), and a line that ends the wrapper's
-own process — one ending in a bare `exit`, or using `exec` — hands
-control to `exit`/`exec` before the wrapper's own next line ever runs.
+accepted, edited, declined by clearing the line, and end of input. One
+ending the wrapper cannot act on writes nothing: Ctrl-C takes the window
+with it without a word (see above).
+
+Without `--record`, a line ending in a bare `exit`, or using `exec`,
+hands control to `exit`/`exec` before the wrapper's own next line ever
+runs, so it too writes nothing — the accepted line runs by `eval` in the
+wrapper's own shell, and `exit`/`exec` end that shell. **With
+`--record`**, the accepted line instead runs inside `script`'s own child
+shell (see [The transcript](#the-transcript)), so `exit`/`exec` end only
+that child; the wrapper regains control exactly as it would after any
+other command and writes a record for it like any other accepted line.
+
+A `script` that fails before `$line` ever starts — its transcript
+destination unwritable, say — is reported the same way as a declined
+prompt: nothing ran, so `executed` and `exit_status` are `null`, and a
+diagnostic naming the path goes to stderr. `declined: true` is
+imprecise here — the resident did not decline — but there is no true
+exit status to report, and the alternative is claiming a status `script`
+invented rather than the command's own.
 
 ```json
 {
@@ -254,7 +269,7 @@ The fields:
 | --- | --- |
 | `proposed` | The command as proposed, verbatim. |
 | `executed` | The line actually run, verbatim; `null` if declined. |
-| `declined` | Whether the resident cleared the line or hit end of input instead of running anything. |
+| `declined` | Whether the resident cleared the line or hit end of input instead of running anything — or the recorder itself failed to start (see above). |
 | `exit_status` | The executed command's exit status; `null` if declined. |
 | `transcript` | Path to the transcript file beside the record (see [The transcript](#the-transcript)); `null` if declined. |
 | `from`, `why` | The provenance, exactly as given to `--from`/`--why`; `null` when neither was passed. |
@@ -304,9 +319,18 @@ The transcript is its own file, not a field in the JSON record: a
 rebuild's output can run to megabytes, and the record has to stay a
 small thing a poller reads cheaply. What the record carries is one
 field, `transcript`, naming the file — or `null` when nothing was
-captured, which is any declined interaction: a cleared line or end of
-input closes the window without running anything, so there is nothing
-to record.
+captured, which is any declined interaction (a cleared line, end of
+input, or the recorder itself failing to start; see [The
+record](#the-record)) — closing the window without running anything, so
+there is nothing to record.
+
+**A reused `PATH` never leaves a stale transcript behind.** A record
+path can be handed to `dovetail-run` more than once — a caller polling
+the same file across several proposals, say. If an earlier interaction
+at that path produced a transcript and a later one at the same path is
+declined, the earlier file is removed before the declined record is
+written, so `transcript: null` is never sitting beside a file that
+contradicts it.
 
 **Ordering is the contract.** The record is written — atomically, as
 above — only after the command has finished and its transcript is
@@ -317,7 +341,9 @@ record exists, `script` has already exited.
 **The exit status is still the command's own.** `script -e` (folded
 into `-qec`) hands back the child's exit status rather than
 substituting its own, so `exit_status` in the record means exactly what
-it means without `--record`, including when it is nonzero.
+it means without `--record`, including when it is nonzero — except when
+`script` fails before `$line` starts, which is not a command exit at
+all; see [The record](#the-record).
 
 **Unechoed input is not captured.** A pty transcript contains what the
 terminal actually drew — which is to say, what was echoed. A program

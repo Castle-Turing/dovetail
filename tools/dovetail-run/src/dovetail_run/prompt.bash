@@ -56,6 +56,14 @@ record_writer="${0%/*}/record.py"
 #   $4 transcript path (empty when declined — nothing was captured)
 write_record() {
     [ -n "$record_path" ] || return 0
+    # A declined record claims no transcript. If this record path was
+    # used before and did produce one, it is still sitting beside it —
+    # `script` only ever overwrites that file on an *accepted* line —
+    # and would otherwise outlive the record that now says nothing was
+    # captured, making stale output look like it belongs to this run.
+    if [ "$1" = "true" ] && [ -n "$transcript_path" ]; then
+        rm -f -- "$transcript_path"
+    fi
     local finished_at
     TZ=UTC printf -v finished_at '%(%Y-%m-%dT%H:%M:%SZ)T' -1
     if ! "$python_bin" "$record_writer" \
@@ -112,10 +120,25 @@ fi
 # still run by bash, recorder or not. `-e` hands back the command's own
 # exit status rather than script's; `-q` only quiets script's own
 # start/done banner on screen, not in the transcript file, which still
-# opens and closes with it.
+# opens and closes with it. The `--` stops a transcript path that
+# happens to start with `-` from being parsed as another option.
+#
+# `script` can fail before `$line` ever starts — its destination
+# already a directory, unwritable, or gone missing underneath it — and
+# then its own exit status is not the command's. The stale file is
+# cleared first so that success is the only way the path ends this
+# block holding a real transcript: if it does not, `script` never got
+# as far as running anything, and the line that was accepted must not
+# be reported as though it had.
 if [ -n "$transcript_path" ]; then
-    SHELL="$BASH" "$recorder" -qec "$line" "$transcript_path"
+    rm -f -- "$transcript_path"
+    SHELL="$BASH" "$recorder" -qec "$line" -- "$transcript_path"
     status=$?
+    if [ ! -f "$transcript_path" ]; then
+        printf 'dovetail-run: the recorder could not open the transcript at %s; nothing was run\n' "$transcript_path" >&2
+        write_record true "" "" ""
+        exit 1
+    fi
 else
     eval "$line"
     status=$?
