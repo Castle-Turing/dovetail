@@ -11,7 +11,31 @@ is worse than none.
 Format: a header of `Key: value` lines (`Title:` at minimum), a blank
 line, then a markdown body that becomes the working agent's prompt —
 boring on purpose, so any harness that reads files can consume the
-queue.
+queue. Keep every harness-read key (`Title:`, `Model:`, `Requires:`,
+`Milestone:`) *above* any header value that wraps onto a continuation
+line — a parser that stops reading headers at the first wrapped line
+will silently treat a key below one as absent (a review finding in the
+Castle Turing repo this convention is adopted from).
+
+## The `Milestone:` header
+
+Task files already carry a `Milestone:` header — used in practice
+since task 0001 but, until this paragraph, never written down. Its
+established values are a roadmap-milestone name from `docs/vision.md`
+(`M1`, `M2`, `M3`) or the explicit non-milestone value `none —
+repository mechanism` (task 0004), and this migration does not change
+or retrofit those values on any existing file.
+
+`docs/state/MILESTONE.md` (see `docs/state/README.md`) now exists as a
+second, clause-keyed way to cite what a task serves, adopted from
+Castle Turing task 0061 — a task derived from a state clause cites its
+key (e.g. `m3-intent`) so a clause revision identifies exactly which
+queued tasks it invalidates. Whether new task files should cite
+roadmap-milestone names, state clause keys, or both is **not settled
+by this migration** — it is a genuine collision between two
+conventions built for related purposes, and closing it is the
+resident's call, not a silent choice made here. Task 0014's brief
+records this as an open question.
 
 Numbers are allocated by checking this directory at write time —
 **including `done/`**. The sequence never restarts and a number is never

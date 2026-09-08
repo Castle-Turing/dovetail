@@ -56,6 +56,10 @@ Deferred work, implementation briefs, and research live in the tree,
 readable by anything that can read files — no issue tracker, no
 external pages:
 
+- `docs/state/` — current truth, maintained and patched in the same PR
+  that changes it; everything else under `docs/` is record. Deriving
+  work cites `docs/state/MILESTONE.md`'s clause keys — see
+  `docs/state/README.md`, adopted from Castle Turing task 0061.
 - `docs/backlog/` — one plain-text file per deferred item, named as a
   statement of the problem, slugs not numbers. See its README for the
   entry shape and lifecycle.
@@ -72,7 +76,8 @@ external pages:
 - **Task file format** (so any harness can consume the queue): a
   header of `Key: value` lines (`Title:` at minimum), a blank line,
   then a markdown body that becomes the working agent's brief. Boring
-  on purpose.
+  on purpose. `Milestone:` is one such key — see `docs/tasks/README.md`
+  for its two, not-yet-reconciled meanings.
 - `docs/research/` — full point-in-time research reports, one file per
   report; see its README for how they relate to the backlog.
 
