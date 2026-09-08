@@ -7,82 +7,97 @@ Clauses carry bracketed keys; deriving work cites them. `[stated
 `[inferred]` marks the system's reading, held until the resident
 confirms or corrects it, with the basis named.
 
-## Milestone 3 — the joint
+**Correction, 2026-09-08:** this document's first version, landed
+earlier in this same PR, read `docs/vision.md` from a checkout 22
+commits behind `origin/main` and mislabeled the current milestone "M3 —
+the joint." The current `docs/vision.md` numbers it differently: M3 is
+"the run verb," and "the joint" is M4, not yet started. This version
+corrects that; nothing below should be read as ever having been shown
+to the resident under the wrong label.
+
+## Milestone 3 — the run verb
 
 [inferred from `docs/vision.md`'s Roadmap section, corroborated by
-`README.md`'s status line ("Two artifacts exist") and by every open
-queue file 0008–0012 carrying `Milestone: M3`] M1 ("show me the
-file") and M2 (the scriptorium) are both built and merged — their
-history lives in `docs/tasks/done/` (0001, 0002, 0005, 0006, 0007),
-not here. M3 is the milestone the open queue is currently working:
-nothing in the repo's record states M3 as "current" in so many words,
-but every in-flight task cites it and no task cites M1 or M2, which is
-the basis for this reading.
+tasks 0009 and 0010 both citing `Milestone: M3` under the old
+roadmap-name convention] M1 ("show me the file") and M2 (the
+scriptorium) are both built and merged — their history lives in
+`docs/tasks/done/` (0001, 0002, 0005, 0006, 0007), not here. M3 is the
+milestone the open queue is currently working; M4 ("the joint") is
+next and no task file yet addresses it.
 
 ### Intent [m3-intent]
 
-[inferred from `docs/vision.md`'s M3 section] Extract the editor
-contract from what M1 and M2 actually called — never designed in
-advance — as a document written for strangers: ensure an instance
-exists and is reachable; open a file, optionally at a line; create a
-scratch buffer bound to a file; read buffer contents; apply an edit
-through the editor; subscribe to or poll for changes; report what is
-open where; and a discovery affordance, given a session, for its
-control socket and protocol. Alongside the contract: the provider slot
-as a module interface with Neovim as the default implementation,
-existing tooling refactored to call the slot, and a providers
-directory whose Emacs entry is a README only.
+[inferred from `docs/vision.md`'s M3 section] One verb opens a
+terminal holding a command the agent has composed — visible, editable,
+and not executed — above a line naming who proposed it and why.
+Nothing runs until the resident presses Enter; editing the line first
+or declining it outright are equal citizens. The reason it does not
+simply run the command is the comprehension principle: watching a
+command run teaches what is going on, being told one ran teaches
+nothing. Three bindings hold off a pre-populated command becoming the
+confirmation problem with the resident's privileges attached: the line
+is genuinely editable, provenance is always printed, and what is
+displayed is what runs — text that could make those two differ is
+refused rather than repaired.
 
 ### Done looks like [m3-done]
 
-[inferred from `docs/vision.md`'s M3 section] The contract document
-exists, derived from M1 and M2's actual calls rather than imposed on
-them. The provider slot exists as a real module interface, Neovim
-occupies it as the reference provider, and existing tooling calls the
-slot rather than shelling out to `nvim` by name. A stranger who wants
-to implement a different editor has the Emacs-stub README as the hook.
-Acceptance for the milestone lives in its numbered briefs, not here —
-`docs/vision.md`'s own words.
+[inferred from `docs/vision.md`'s M3 section and the shape of tasks
+0008–0010 and 0012, which build it in sequence] Terminal resolution is
+declarative rather than environment-only, so an agent session with no
+inherited interactive environment can still reach a terminal (task
+0008). The run verb itself exists and behaves as `[m3-intent]`
+describes (task 0009). The delta between the command an agent proposed
+and the command the resident actually ran is kept as a correction
+worth recording (task 0010). The record carries the executed command's
+output, not just its exit status, so the proposing agent can see what
+actually happened (task 0012). `docs/vision.md` states explicitly that
+auto-run is out of scope for this milestone: "Auto-run arrives through
+an authority taxonomy or not at all; there is no flag for it."
 
 ### Explicitly out [m3-out]
 
-[inferred from `docs/vision.md`'s Non-goals section, which is stated
-against the project as a whole rather than M3 specifically, so its
-scope here is an inference] The general rooms mechanism (the
-scriptorium stays one concrete worksession). An Emacs implementation
-beyond the stub. Rendered markdown previews. Any outward-facing
-authority — nothing here sends, declines, or communicates on anyone's
-behalf. Becoming the agent layer's edit path — the castle's worker
-seat proposes diffs under its own contract, and Dovetail does not sit
-in that path.
+[inferred from `docs/vision.md`'s Non-goals section, stated
+project-wide rather than M3-specifically, so its scope here is an
+inference] The general rooms mechanism. An Emacs implementation beyond
+the eventual stub. Rendered markdown previews. Any outward-facing
+authority. Becoming the agent layer's edit path. Specific to M3
+[inferred directly from `docs/vision.md`'s M3 section]: auto-running
+the composed command without the resident's keypress.
 
 ### Position [m3-now] — patched per PR
 
 - Current-state layer: landing with this PR (task 0014, adopting
-  Castle Turing task 0061's conventions).
-- Merged and not yet swept to `done/`: tasks 0008, 0009, 0010, and
-  0011 (the tidying task itself) are all merged into `origin/main` but
-  still sit at the top level of `docs/tasks/` — directly checkable
-  against `git log origin/main` and the directory listing, not an
-  inference. Sweeping them is hygiene per `docs/tasks/README.md`, not
-  a state fact, and is left for whoever next tidies the queue.
-- Open queue, unmerged, at the top level: task 0012 ("the record
-  carries a transcript") and task 0013 ("an AI pair-programming
-  seat"). Both exist only as untracked files in the primary checkout —
-  neither is on `origin/main` nor on any fetched remote branch as of
-  this PR, verified directly. [stated 2026-09-08, via the operator's
-  session] Task 0013 was added 2026-09-07 by the operator's session,
-  out of the Castle Turing conversation-seat elicitation, and predates
-  this migration.
+  Castle Turing task 0061's conventions) — corrected in place, per the
+  note at the top of this file.
+- Merged and not yet swept to `done/`: tasks 0008, 0009, 0010, and 0011
+  (the tidying task itself) are all merged into `origin/main` — checked
+  directly against `git log origin/main` and the current directory
+  listing, not an inference — but still sit at the top level of
+  `docs/tasks/`. Sweeping them is hygiene per `docs/tasks/README.md`,
+  left for whoever next tidies the queue.
+- Open, unmerged, at the top level: task 0012 ("the record carries a
+  transcript," extending task 0010 — the apparent last piece of
+  `[m3-done]`) and task 0013 ("an AI pair-programming seat"). Both
+  exist only as untracked files in the primary checkout — neither is on
+  `origin/main` nor on any fetched remote branch, verified directly.
+  [stated 2026-09-08, via the operator's session] Task 0013 was added
+  2026-09-07 by the operator's session, out of the Castle Turing
+  conversation-seat elicitation, and builds toward neither `[m3-done]`
+  nor any M4 clause (M4 has none yet) — an addition outside the roadmap
+  sequence, not fit into either bucket by this document.
 - [stated 2026-09-08, via the operator's session] Migration to the
   `docs/state/` conventions this PR adds was ordered before the next
-  sprint launches.
-- `Milestone:` header semantics: dovetail's task files already use a
-  `Milestone:` header (undocumented until this PR — see
-  `docs/tasks/README.md`) whose values are roadmap-milestone names
-  (`M1`/`M2`/`M3`) rather than clause keys into this file, plus the
-  explicit non-milestone value `none — repository mechanism` (task
-  0004). This migration does not retrofit that convention onto
-  existing files; it is flagged as an open reconciliation question in
-  `docs/tasks/README.md` and in this PR's brief, task 0014, for the
-  resident to close.
+  sprint launches. [stated 2026-09-08, via the operator's session] The
+  `Milestone:` header now means exclusively a clause key from this
+  file, or the explicit value `none — hygiene`; the roadmap-name form
+  (`M1`/`M2`/`M3`) and the phrase `none — repository mechanism` are
+  retired — see `docs/tasks/README.md`.
+- **Left unresolved, not retrofitted:** tasks 0006 (`Milestone: M2`)
+  and 0007 (`Milestone: M1`) predate this document and cite already-
+  achieved milestones with no live clause key here — this file records
+  only current truth, and M1/M2 are historical. Neither a clause-key
+  citation nor `none — hygiene` honestly describes them: they were
+  substantive milestone work, not hygiene, and nothing here is still
+  true of them to cite. Task 0014's brief flags this rather than
+  forcing either value.

@@ -36,10 +36,9 @@ full research reports, not reproduced here.
 3. **Deriving work cites clauses.** Documents here carry bracketed
    clause keys (`[m3-intent]`). A task derived from a clause cites its
    key, so a revision to the clause identifies exactly the tasks it
-   invalidates. Dovetail's task files already carry a `Milestone:`
-   header for a related purpose — see `docs/tasks/README.md` for how
-   the two are reconciled, since that reconciliation is not yet
-   settled and is flagged there rather than decided here.
+   invalidates. A task file's `Milestone:` header carries the citation —
+   see `docs/tasks/README.md` for the header's form, ruled by the
+   resident 2026-09-08.
 4. **Deliberate accommodation.** Adding a document or a top-level
    section here is a deliberate act, recorded with one line of why in
    the PR that does it. Automatic schema induction is explicitly out of

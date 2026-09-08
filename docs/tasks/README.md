@@ -19,23 +19,26 @@ Castle Turing repo this convention is adopted from).
 
 ## The `Milestone:` header
 
-Task files already carry a `Milestone:` header — used in practice
-since task 0001 but, until this paragraph, never written down. Its
-established values are a roadmap-milestone name from `docs/vision.md`
-(`M1`, `M2`, `M3`) or the explicit non-milestone value `none —
-repository mechanism` (task 0004), and this migration does not change
-or retrofit those values on any existing file.
+`Milestone:` names a clause key from `docs/state/MILESTONE.md` (see
+`docs/state/README.md`), or the explicit value `none — hygiene` for a
+task that serves nothing there — adopted from Castle Turing task 0061.
+A task derived from a state clause cites its key (e.g. `m3-done`) so a
+clause revision identifies exactly which queued tasks it invalidates.
 
-`docs/state/MILESTONE.md` (see `docs/state/README.md`) now exists as a
-second, clause-keyed way to cite what a task serves, adopted from
-Castle Turing task 0061 — a task derived from a state clause cites its
-key (e.g. `m3-intent`) so a clause revision identifies exactly which
-queued tasks it invalidates. Whether new task files should cite
-roadmap-milestone names, state clause keys, or both is **not settled
-by this migration** — it is a genuine collision between two
-conventions built for related purposes, and closing it is the
-resident's call, not a silent choice made here. Task 0014's brief
-records this as an open question.
+**Ruled by the resident, 2026-09-08:** this is the single form. Task
+files had already been using a `Milestone:` header since task 0001,
+with values that were a bare roadmap-milestone name from
+`docs/vision.md` (`M1`, `M2`, `M3`) or the explicit phrase `none —
+repository mechanism` (task 0004) — that form is now retired, and the
+tracked queue was retrofitted to the clause-key form in the same PR
+that made this ruling (task 0014), except for two files flagged there
+rather than forced (0006, 0007 — see that brief). Six files still carry
+a retired value and were deliberately left untouched, since their
+values are the resident's to assign, not a migration's to overwrite:
+0001, 0002, 0005, 0006 and 0007 carry the retired roadmap-name form,
+and 0004 carries the retired `none —` phrase. A reader meeting one of
+these in `done/` or in history should read it as the pre-2026-09-08
+convention, not the current one.
 
 Numbers are allocated by checking this directory at write time —
 **including `done/`**. The sequence never restarts and a number is never
