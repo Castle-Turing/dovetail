@@ -1,5 +1,5 @@
 Title: An edited command is a correction worth keeping
-Milestone: M3
+Milestone: m3-done
 
 # 0010 — An edited command is a correction worth keeping
 

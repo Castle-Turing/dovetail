@@ -1,4 +1,5 @@
 Title: The terminal slot is declarative
+Milestone: m3-done
 
 # 0008 — The terminal slot is declarative
 
