@@ -87,7 +87,24 @@ def test_from_and_why_reach_the_wrapper_raw_alongside_the_record_path(
         ["echo hi", "--record", str(record_path), "--from", "a seat", "--why", "because"],
         environ=ENV,
     )
-    assert spawned[0][6:] == [str(record_path), "a seat", "because"]
+    assert spawned[0][6:9] == [str(record_path), "a seat", "because"]
+
+
+def test_a_record_path_grows_a_transcript_path_and_the_baked_recorder(
+    spawned, tmp_path
+):
+    record_path = tmp_path / "record.json"
+    cli.run(["echo hi", "--record", str(record_path)], environ=ENV)
+    argv = spawned[0]
+    assert len(argv) == 11
+    assert argv[9].endswith("script")
+    assert argv[10] == str(record_path) + ".transcript"
+
+
+def test_recording_is_announced_in_the_provenance_block(spawned, tmp_path):
+    record_path = tmp_path / "record.json"
+    cli.run(["echo hi", "--record", str(record_path)], environ=ENV)
+    assert "recorded" in spawned[0][4]
 
 
 def test_a_record_path_whose_parent_directory_is_missing_is_refused_before_spawning(

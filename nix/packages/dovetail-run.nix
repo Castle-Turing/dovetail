@@ -4,20 +4,25 @@
 # compositor seam, the terminal slot, and the launch machinery, along
 # with the store paths baked into them — comes from `dovetail-seams`.
 #
-# Two store paths are baked in here that no other verb needs: the bash
-# that runs the prompt, and the Python that writes the record afterwards.
-# The prompt is a real readline line (`read -e -i`), which is a bash
-# feature, and the resident's terminal may start any shell or none at
-# all — so the shell is named by absolute path rather than found on
-# `$PATH`. The record needs a JSON encoder bash does not have, and the
-# same terminal may put no Python, or a different one, on its `$PATH`
-# either. There is no runtime override for either, because a shell or a
-# Python that cannot run these scripts cannot hold the slot.
+# Three store paths are baked in here that no other verb needs: the bash
+# that runs the prompt, the Python that writes the record afterwards, and
+# the `script` binary that records a pty transcript under `--record`. The
+# prompt is a real readline line (`read -e -i`), which is a bash feature,
+# and the resident's terminal may start any shell or none at all — so the
+# shell is named by absolute path rather than found on `$PATH`. The
+# record needs a JSON encoder bash does not have, and the same terminal
+# may put no Python, or a different one, on its `$PATH` either. `script`
+# is the same story a third time: the transcript mechanism this task
+# adds is `script -qec` specifically, not whatever a resident's terminal
+# happens to have. There is no runtime override for any of the three,
+# because a shell, a Python or a `script` that cannot run these scripts
+# cannot hold the slot.
 {
   lib,
   bash,
   python3,
   python3Packages,
+  util-linux,
   dovetail-seams,
 }:
 
@@ -34,7 +39,8 @@ python3Packages.buildPythonApplication {
 
   postPatch = ''
     substituteInPlace src/dovetail_run/defaults.py \
-      --replace-fail '@dovetailBash@' '${lib.getExe' bash "bash"}'
+      --replace-fail '@dovetailBash@' '${lib.getExe' bash "bash"}' \
+      --replace-fail '@dovetailScript@' '${lib.getExe' util-linux "script"}'
     substituteInPlace src/dovetail_run/prompt.bash \
       --replace-fail '@dovetailPython@' '${lib.getExe python3}'
   '';

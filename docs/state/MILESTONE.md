@@ -70,17 +70,14 @@ the composed command without the resident's keypress.
 - Current-state layer: landing with this PR (task 0014, adopting
   Castle Turing task 0061's conventions) — corrected in place, per the
   note at the top of this file.
-- Merged and not yet swept to `done/`: tasks 0008, 0009, 0010, and 0011
-  (the tidying task itself) are all merged into `origin/main` — checked
-  directly against `git log origin/main` and the current directory
-  listing, not an inference — but still sit at the top level of
-  `docs/tasks/`. Sweeping them is hygiene per `docs/tasks/README.md`,
-  left for whoever next tidies the queue.
-- Open, unmerged, at the top level: task 0012 ("the record carries a
-  transcript," extending task 0010 — the apparent last piece of
-  `[m3-done]`), still only an untracked file in the primary checkout —
-  not on `origin/main` nor on any fetched remote branch, verified
-  directly. [stated 2026-09-08, via the operator's session] Task 0013
+- Merged and not yet swept to `done/`: tasks 0008, 0009, 0010, 0011
+  (the tidying task itself), and 0012 ("the record carries a
+  transcript," extending task 0010 — the piece that completes
+  `[m3-done]`) are all merged into `origin/main` — checked directly
+  against `git log origin/main` and the current directory listing, not
+  an inference — but still sit at the top level of `docs/tasks/`.
+  Sweeping them is hygiene per `docs/tasks/README.md`, left for whoever
+  next tidies the queue. Task 0013
   ("an AI pair-programming seat"), added 2026-09-07 out of the Castle
   Turing conversation-seat elicitation, built toward neither `[m3-done]`
   nor any M4 clause (M4 has none yet); [stated 2026-09-08, via the

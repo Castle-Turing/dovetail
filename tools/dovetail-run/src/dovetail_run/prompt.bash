@@ -1,11 +1,14 @@
 # The prompt the resident is handed. Run by `dovetail-run` as the
-# trailing arguments of the terminal the resident named, with exactly
-# five arguments: the provenance block to print, the command to
+# trailing arguments of the terminal the resident named, with either
+# five arguments or seven: the provenance block to print, the command to
 # pre-fill, a path to record the interaction's outcome to (empty means
 # don't), and the raw `--from`/`--why` text the record wants verbatim
-# (also empty when neither was given). All five have already been
-# refused-or-passed by `sanitize.py`, so nothing here has to defend
-# against a newline or an escape sequence.
+# (also empty when neither was given) are always present. The recorder
+# binary and the transcript path it writes to trail those five only when
+# `--record` was given — a fixed-arity pair, present together or not at
+# all, never as two more empty strings. All seven, when present, have
+# already been refused-or-passed by `sanitize.py`, so nothing here has
+# to defend against a newline or an escape sequence.
 #
 # It is not executable and has no shebang: the verb names bash by store
 # path and hands this file to it, so the shell that runs the prompt is
@@ -18,8 +21,8 @@
 # word motions, kill and yank all work — and `-i` seeds it with the
 # proposal rather than typing it for her.
 
-if [ "$#" -ne 5 ]; then
-    printf 'dovetail-run: the prompt wrapper takes five arguments, got %d\n' "$#" >&2
+if [ "$#" -ne 5 ] && [ "$#" -ne 7 ]; then
+    printf 'dovetail-run: the prompt wrapper takes five or seven arguments, got %d\n' "$#" >&2
     exit 2
 fi
 
@@ -28,6 +31,8 @@ proposal=$2
 record_path=$3
 record_from=$4
 record_why=$5
+recorder=${6-}
+transcript_path=${7-}
 
 # The record needs a JSON encoder, which bash does not have, so writing
 # it is delegated to a standalone script shipped beside this one — found
@@ -48,12 +53,21 @@ record_writer="${0%/*}/record.py"
 # warning on stderr, not a reason to change what this window reports
 # about the command itself.
 #   $1 declined ("true"/"false")  $2 executed line  $3 exit status
+#   $4 transcript path (empty when declined — nothing was captured)
 write_record() {
     [ -n "$record_path" ] || return 0
+    # A declined record claims no transcript. If this record path was
+    # used before and did produce one, it is still sitting beside it —
+    # `script` only ever overwrites that file on an *accepted* line —
+    # and would otherwise outlive the record that now says nothing was
+    # captured, making stale output look like it belongs to this run.
+    if [ "$1" = "true" ] && [ -n "$transcript_path" ]; then
+        rm -f -- "$transcript_path"
+    fi
     local finished_at
     TZ=UTC printf -v finished_at '%(%Y-%m-%dT%H:%M:%SZ)T' -1
     if ! "$python_bin" "$record_writer" \
-        "$record_path" "$1" "$proposal" "$2" "$3" \
+        "$record_path" "$1" "$proposal" "$2" "$3" "$4" \
         "$record_from" "$record_why" "$proposed_at" "$finished_at"; then
         printf 'dovetail-run: could not write the record to %s\n' "$record_path" >&2
     fi
@@ -87,23 +101,59 @@ printf '%s\n\n' "$provenance"
 # displayed is what runs, byte for byte, and trimming would be a repair.
 if ! IFS= read -e -r -i "$proposal" -p '$ ' line; then
     printf '\ndovetail-run: end of input; nothing was run.\n'
-    write_record true "" ""
+    write_record true "" "" ""
     exit 0
 fi
 
 if [ -z "${line//[[:space:]]/}" ]; then
     printf 'dovetail-run: the line was cleared; nothing was run.\n'
-    write_record true "" ""
+    write_record true "" "" ""
     exit 0
 fi
 
-eval "$line"
-status=$?
+# Under --record, the accepted line runs inside `script` instead of a
+# bare `eval`, so what the resident sees is captured to a transcript
+# while she still sees it as a real terminal — progress bars, prompts
+# and color survive. $BASH is bash's own built-in for the exact path
+# used to invoke this instance, so SHELL names the very same bash the
+# rest of this file runs under: a command written for bash's syntax is
+# still run by bash, recorder or not. `-e` hands back the command's own
+# exit status rather than script's; `-q` only quiets script's own
+# start/done banner on screen, not in the transcript file, which still
+# opens and closes with it. A transcript path that happens to start
+# with `-` is prefixed with `./` rather than guarded with `--`,
+# because `script` gives `--` a meaning of its own — a `-- program`
+# form that util-linux rejects as mutually exclusive with `-c`.
+#
+# `script` can fail before `$line` ever starts — its destination
+# already a directory, unwritable, or gone missing underneath it — and
+# then its own exit status is not the command's. The stale file is
+# cleared first so that success is the only way the path ends this
+# block holding a real transcript: if it does not, `script` never got
+# as far as running anything, and the line that was accepted must not
+# be reported as though it had.
+if [ -n "$transcript_path" ]; then
+    case "$transcript_path" in -*) transcript_path="./$transcript_path" ;; esac
+    rm -f -- "$transcript_path"
+    SHELL="$BASH" "$recorder" -qec "$line" "$transcript_path"
+    status=$?
+    if [ ! -f "$transcript_path" ]; then
+        printf 'dovetail-run: the recorder could not open the transcript at %s; nothing was run\n' "$transcript_path" >&2
+        write_record true "" "" ""
+        exit 1
+    fi
+else
+    eval "$line"
+    status=$?
+fi
 
 # Written now, not after the hold-open read below: a caller polling for
 # the record is waiting on the correction signal, not on the resident
-# having read the output and closed the window.
-write_record false "$line" "$status"
+# having read the output and closed the window. The transcript is
+# already complete by this point too — `script` above has already
+# exited — so a poller that waits for this record never reads a partial
+# transcript.
+write_record false "$line" "$status" "$transcript_path"
 
 # The window belongs to the resident until she is finished reading it.
 # A terminal that closes on the command's last line of output is a

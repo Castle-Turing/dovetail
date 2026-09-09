@@ -101,16 +101,23 @@ def run(argv: list[str] | None = None, environ: os._Environ | dict = os.environ)
     # exist is a refusal, not a guess about where to create one.
     record_path = record_module.check_record_path(args.record) if args.record else None
 
+    # The transcript lives beside the record and exists for no other
+    # reason, so it is only ever computed alongside a record path.
+    transcript_path = (
+        record_module.transcript_path_for(record_path) if record_path else None
+    )
+
     # Before spawning: an unset terminal is a refusal, not a half-open
     # window.
     terminal = seams.terminal_argv(args.terminal, environ)
 
     wrapper = prompt_module.wrapper_argv(
-        prompt_module.provenance(proposer, why),
+        prompt_module.provenance(proposer, why, recording=record_path is not None),
         command,
         record_path=str(record_path) if record_path else "",
         proposer=proposer or "",
         why=why or "",
+        transcript_path=str(transcript_path) if transcript_path else "",
     )
 
     launch_module.launch(

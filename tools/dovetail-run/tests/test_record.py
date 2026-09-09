@@ -30,6 +30,7 @@ def test_build_record_has_exactly_the_documented_fields():
         executed="echo hi",
         declined=False,
         exit_status=0,
+        transcript="/tmp/r.json.transcript",
         from_="a seat",
         why="because",
         proposed_at="2026-09-06T00:00:00Z",
@@ -40,6 +41,7 @@ def test_build_record_has_exactly_the_documented_fields():
         "executed": "echo hi",
         "declined": False,
         "exit_status": 0,
+        "transcript": "/tmp/r.json.transcript",
         "from": "a seat",
         "why": "because",
         "proposed_at": "2026-09-06T00:00:00Z",
@@ -53,6 +55,7 @@ def test_build_record_allows_a_zero_exit_status_to_survive():
         executed="true",
         declined=False,
         exit_status=0,
+        transcript=None,
         from_=None,
         why=None,
         proposed_at="t0",
@@ -62,12 +65,13 @@ def test_build_record_allows_a_zero_exit_status_to_survive():
     assert built["exit_status"] is not None
 
 
-def test_build_record_a_decline_has_null_executed_and_exit_status():
+def test_build_record_a_decline_has_null_executed_exit_status_and_transcript():
     built = record.build_record(
         proposed="echo hi",
         executed=None,
         declined=True,
         exit_status=None,
+        transcript=None,
         from_=None,
         why=None,
         proposed_at="t0",
@@ -75,6 +79,7 @@ def test_build_record_a_decline_has_null_executed_and_exit_status():
     )
     assert built["executed"] is None
     assert built["exit_status"] is None
+    assert built["transcript"] is None
     assert built["declined"] is True
 
 
@@ -85,6 +90,7 @@ def test_write_produces_valid_json_readable_at_the_target_path(tmp_path):
         executed="echo hi",
         declined=False,
         exit_status=0,
+        transcript="/tmp/r.json.transcript",
         from_="a seat",
         why="because",
         proposed_at="t0",
@@ -92,6 +98,16 @@ def test_write_produces_valid_json_readable_at_the_target_path(tmp_path):
     )
     record.write(path, built)
     assert json.loads(path.read_text()) == built
+
+
+def test_transcript_path_for_appends_the_suffix_beside_the_record(tmp_path):
+    path = tmp_path / "record.json"
+    assert record.transcript_path_for(path) == tmp_path / "record.json.transcript"
+
+
+def test_transcript_path_for_works_without_an_extension(tmp_path):
+    path = tmp_path / "record"
+    assert record.transcript_path_for(path) == tmp_path / "record.transcript"
 
 
 def test_write_leaves_no_temp_file_behind(tmp_path):
@@ -127,6 +143,7 @@ def test_main_writes_the_accepted_case(tmp_path):
             "echo hi",
             "echo hi",
             "0",
+            str(path) + ".transcript",
             "a seat",
             "because",
             "t0",
@@ -139,6 +156,7 @@ def test_main_writes_the_accepted_case(tmp_path):
         "executed": "echo hi",
         "declined": False,
         "exit_status": 0,
+        "transcript": str(path) + ".transcript",
         "from": "a seat",
         "why": "because",
         "proposed_at": "t0",
@@ -149,23 +167,35 @@ def test_main_writes_the_accepted_case(tmp_path):
 def test_main_writes_the_declined_case_with_nulls(tmp_path):
     path = tmp_path / "record.json"
     status = record.main(
-        [str(path), "true", "echo hi", "", "", "", "", "t0", "t1"]
+        [str(path), "true", "echo hi", "", "", "", "", "", "t0", "t1"]
     )
     assert status == 0
     written = json.loads(path.read_text())
     assert written["declined"] is True
     assert written["executed"] is None
     assert written["exit_status"] is None
+    assert written["transcript"] is None
     assert written["from"] is None
     assert written["why"] is None
 
 
 def test_main_treats_blank_from_and_why_as_absent(tmp_path):
     path = tmp_path / "record.json"
-    record.main([str(path), "false", "echo hi", "echo hi", "0", "", "", "t0", "t1"])
+    record.main(
+        [str(path), "false", "echo hi", "echo hi", "0", "t.transcript", "", "", "t0", "t1"]
+    )
     written = json.loads(path.read_text())
     assert written["from"] is None
     assert written["why"] is None
+
+
+def test_main_treats_a_blank_transcript_as_absent_even_when_accepted(tmp_path):
+    path = tmp_path / "record.json"
+    record.main(
+        [str(path), "false", "echo hi", "echo hi", "0", "", "a seat", "because", "t0", "t1"]
+    )
+    written = json.loads(path.read_text())
+    assert written["transcript"] is None
 
 
 def test_main_rejects_the_wrong_number_of_arguments(capsys):
