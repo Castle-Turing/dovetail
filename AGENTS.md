@@ -63,6 +63,16 @@ external pages:
 - `docs/backlog/` — one plain-text file per deferred item, named as a
   statement of the problem, slugs not numbers. See its README for the
   entry shape and lifecycle.
+- **An incident ships its detector.** A backlog entry filed from a
+  regression, outage, or silent failure answers, in its own section,
+  how it would have been caught sooner; the brief that fixes it
+  either lands that detector as an automated check or states why
+  none is mechanically possible. Blank is not an answer — the same
+  non-emptiness rule that binds `Model-because:`. A silent failure
+  looks like a quiet day; only a check outlives the memory of the
+  incident. (Resident-adopted 2026-09-08, ecosystem-wide, from the
+  review-pipeline regression a human question caught and no
+  automated check did.)
 - `docs/tasks/` — numbered briefs (`0001-`, `0002-`, …), each the spec
   and reasoning for one piece of implementation work. **Every piece of
   implementation work gets a brief, however small** — proportionality
