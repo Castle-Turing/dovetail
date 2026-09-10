@@ -181,29 +181,40 @@ hard-wrapped at roughly 72 columns, so a single claim routinely spans
 three lines. A line-based lint would demand a citation on each of them
 and would be unusable. A block is a run of consecutive non-blank body
 lines forming a paragraph, or a single list item together with its
-continuation lines. Rules 2 and 3 bind the block.
+continuation lines. Rules 2 and 3 bind the block; rule 1 does not —
+grounding a heading or a header value makes no sense, but banning
+completion vocabulary in one applies exactly as it does in a
+paragraph, since `docs/state/README.md` scopes the ban to "generated
+reporting" without carving out headings.
 
-- **R1 — vocabulary.** No block outside an exempt span contains, on a
-  word boundary and case-insensitively, a word from the list. The
-  starting list is exactly the four families
-  `docs/state/README.md` names and no more: `complete` (`completed`,
-  `completes`, `completion`), `done`, `finished` (`finish`,
-  `finishes`), `successful` (`successfully`, `success`). Growing the
-  list is a review decision, recorded in the same PR that grows it.
+- **R1 — vocabulary.** No non-exempt text in the report — a block, a
+  `##` heading, or a header key's value — contains, on a word
+  boundary and case-insensitively, a word from the list. The starting
+  list is exactly the four families `docs/state/README.md` names and
+  no more: `complete` (`completed`, `completes`, `completion`),
+  `done`, `finished` (`finish`, `finishes`), `successful`
+  (`successfully`, `success`). Growing the list is a review decision,
+  recorded in the same PR that grows it.
 - **R2/R3 — grounding.** Every claim block carries at least one
-  citation token or the literal `[unverified]`. A claim block is a
-  block of at least four words after list markers are stripped, which
-  keeps bare labels and one-word bullets out of scope. The citation
-  grammar is closed and small: `PR #<n>`; a hex commit sha of 7 to 40
-  characters; `task <nnnn>`; a bracketed clause key such as
-  `[m3-done]`; or a repo-relative path with a file extension. A token
-  outside this grammar is not a citation, and the error message says
-  so rather than guessing at intent.
-- **R4 — ordering.** The first two `##` headings in the body are
-  `## Threats` and then `## Drift`. Both are required, and each must
-  have a non-empty body — the same non-emptiness rule that binds
-  `Model-because:` in a task file. Everything after them is the
-  generator's business and is not ordered by this rule.
+  citation token or the literal `[unverified]`. A claim block is any
+  block that is not a bare label; a bare label is a block, after list
+  markers are stripped, consisting of a single word or one of the
+  stand-in tokens `TBD`, `N/A`, `None`, `—`, and nothing else. A short
+  sentence — `No threats identified.`, three words — is not a bare
+  label and is a claim block like any other; word count alone does
+  not exempt it. The citation grammar is closed and small: `PR #<n>`;
+  a hex commit sha of 7 to 40 characters; `task <nnnn>`; a bracketed
+  clause key such as `[m3-done]`; or a repo-relative path with a file
+  extension. A token outside this grammar is not a citation, and the
+  error message says so rather than guessing at intent.
+- **R4 — ordering.** The body, apart from leading whitespace, begins
+  with `## Threats`; any content before it — a paragraph, a heading
+  of another name — is a violation on its own, not merely an
+  omission. The first two `##` headings are `## Threats` and then
+  `## Drift`. Both are required, and each must have a non-empty body
+  — the same non-emptiness rule that binds `Model-because:` in a task
+  file. Everything after them is the generator's business and is not
+  ordered by this rule.
 
 **Exempt spans**, which exist for rule 1's "directly quoted resident
 verdict" clause and for quoted artifact text:
@@ -244,7 +255,9 @@ The gate answers the backlog entry's actual trap: not a bad report,
 but a generator that quietly never runs the lint.
 
 A second flake check scans the source tree for readers of
-`docs/state/` — the literal string in any file under `tools/` — and
+`docs/state` — the literal string `docs/state` in any file under
+`tools/`, matched with or without a trailing slash so
+`Path("docs/state")` is caught as surely as `docs/state/*.md` — and
 fails unless every file that matches is listed in an allowlist
 committed beside the check, each entry carrying one line of why.
 Today the allowlist is empty and the scan finds nothing, and the check
@@ -396,13 +409,19 @@ judgment call be recorded rather than silently made.
   block containing every word on the list, which must pass; a claim
   spanning three hard-wrapped lines with its citation on the last,
   which must pass; a three-line block with no citation and no
-  `[unverified]`, which must fail once, not three times.
+  `[unverified]`, which must fail once, not three times; a heading
+  such as `## Completed work`, which must fail under R1; a three-word
+  claim such as `No threats identified.` with no citation and no
+  `[unverified]`, which must fail under R2/R3; and a paragraph before
+  `## Threats`, which must fail under R4 even though the first two
+  `##` headings are still Threats then Drift.
 - The header rules: each of the three required keys missing, in turn.
 - The block unit under list items, including a bullet whose
   continuation lines carry the citation.
 - The gate's own tests, over a synthetic file list: a match with no
   allowlist entry fails, a match with one passes, the empty tree
-  passes.
+  passes, and `Path("docs/state")` without a trailing slash fails the
+  same as `docs/state/`.
 - An example report, committed as documentation and linted by the test
   suite, proving the format is writable by hand and that the rules do
   not contradict each other in practice.
