@@ -105,4 +105,12 @@ re-deriving it:
 
 This repo has no generator yet that reads `docs/state/` — the rule is
 recorded here so the first one that gets built is built against it,
-rather than the discipline being re-derived, or skipped, later.
+rather than the discipline being re-derived, or skipped, later. The
+mechanical part of the rule is specified, as of task 0016, and not yet
+built: a report format, an offline lint over it, and a gate that fails
+when an unregistered reader of this directory appears. That brief also
+states, and this sentence repeats because it is the load-bearing half,
+which part of the discipline no check reaches — whether a citation
+supports its claim, what the report omits, completeness asserted in
+words no blocklist holds, and `[unverified]` used to launder. A green
+check on a report is a receipt, never a verdict that it is honest.
