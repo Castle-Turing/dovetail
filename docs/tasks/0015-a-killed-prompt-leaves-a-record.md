@@ -119,6 +119,21 @@ whatever partial edit was on the readline buffer at the moment of the
 signal (bash's `read` does not expose a partial line on interruption),
 so `executed` stays `null`, consistent with every other declined case.
 
+The handler's first action, before calling `write_record`, is to
+ignore all three trapped signals (`trap '' INT HUP TERM`) rather than
+leave them armed for the duration of the write. Without that, a second
+signal in the same family — the exact variation this brief's own
+"reference terminal" section names, a supervisor's `SIGTERM` racing the
+kernel's `SIGHUP` from the same window closing — could interrupt
+`write_record`'s own subprocess mid-write, leaving no record or a
+stale `.tmp` file where the atomic-rename contract in task 0010
+promises one or the other, never neither. A signal arriving while
+ignored is simply dropped, not queued, which is exactly what is wanted
+here: the wrapper still dies, but because the handler explicitly
+re-raises the *original* triggering signal against its own PID once
+`write_record` returns and default disposition is restored — not
+because some second signal happened to survive the write.
+
 After writing the record, the handler resets the trapped signal's
 disposition to default and re-raises the same signal against the
 wrapper's own PID, rather than calling `exit` with a fixed status —
@@ -202,7 +217,12 @@ Agent-testable, no human involved:
   reuses a `--record PATH` that already holds a transcript from an
   earlier accepted proposal at the same path, to confirm the killed
   path also clears a stale transcript exactly as the other decline
-  paths already do.
+  paths already do. A fourth case sends a direct `SIGTERM` and then
+  closes the pty master immediately after, without waiting for the
+  wrapper to exit — the combined sequence a closing window and an
+  exiting supervisor can produce together — and checks the same
+  record shape and the same absence of a surviving `.tmp` file, to
+  exercise the signal-blocking window `write_record` runs inside.
 - A case without `--record`: the same three signals still end the
   wrapper (no change in observable behavior), and no file appears
   anywhere.
@@ -271,4 +291,11 @@ tasks that satisfy it (0009, 0010, 0012); this brief is not yet
 implemented, and adding an unimplemented task to a "done looks like"
 clause would misstate current truth. The PR that implements this brief
 is the one that should decide whether `[m3-done]` needs a patch, per
-`docs/state/README.md`'s same-PR rule.
+`docs/state/README.md`'s same-PR rule. What this brief *does* settle —
+the killed-prompt signal policy itself, a design decision independent
+of whether the code exists yet — is recorded as a `[m3-now]` position
+bullet in the same PR, per cross-vendor review on this pull request:
+`docs/state/README.md`'s same-PR rule binds on "makes a design
+decision," not only on "completes milestone work," and this brief
+makes one. The position bullet says plainly that it predates
+implementation, so it cannot be mistaken for `[m3-done]` coverage.
