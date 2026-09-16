@@ -99,3 +99,11 @@ the composed command without the resident's keypress.
   was written; only files written after the ruling must use the
   clause-key form. 0006 and 0007 (and, on the same basis, 0001, 0002,
   0004, 0005) are untouched by design, not by omission.
+- [inferred from `docs/tasks/0015-a-killed-prompt-leaves-a-record.md`,
+  landed as a spec-only PR] The killed-prompt signal policy is settled:
+  a killed prompt (Ctrl-C, the window closing, or a `SIGTERM` while the
+  prompt is still up) reports through the same `declined: true` path as
+  today's cleared-line and end-of-input cases — no new schema field, no
+  "opened" marker file. Task 0015 is not yet implemented, so this is a
+  design decision recorded ahead of the code; `[m3-done]` stays
+  unchanged until the implementing PR lands and updates this position.
