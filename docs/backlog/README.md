@@ -13,10 +13,18 @@ where a shared list would.
 ## Lifecycle
 
 A backlog entry states a **problem**. A task brief in `docs/tasks/`
-states a **solution**. When an entry is specced, it becomes
-`docs/tasks/NNNN-<slug>.md` and the backlog file is deleted in the same
-commit — git history keeps the lineage, and the backlog stays a list of
-things not yet decided rather than an archive.
+states a **solution**. Speccing happens in place: an entry's file grows
+the task header and body as its spec matures, and stays here while it
+does. The resident's approval of a fully specced entry is recorded as
+`Status: ready` in its header — the resident's act, never inferred. A
+ready entry is promoted by verbatim transfer to
+`docs/tasks/NNNN-<slug>.md`: headers and body copied unchanged except
+the `Status:` line, and the backlog file deleted in the same commit —
+git history keeps the lineage, and the backlog stays a list of things
+not yet decided rather than an archive. Placing a file in `docs/tasks/`
+can be a harness's dispatch trigger, so the gate keeps editorial
+judgment out of the transfer: approval happens here, and what was
+approved is what runs.
 
 Entries are not numbered. Numbers in `docs/tasks/` are sequential and
 mean something (the order work was committed to); backlog order means
