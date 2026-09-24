@@ -80,9 +80,10 @@ external pages:
   the branch that implements it; if the design shifts during
   implementation, the same PR updates the brief. Numbers are allocated
   by checking the directory at write time, never from a stale listing.
-  Speccing a backlog entry promotes it to a brief and deletes the
-  backlog file in the same commit. Move a merged task's file to
-  `docs/tasks/done/` when tidying.
+  A brief arrives here only by verbatim transfer of a backlog entry the
+  resident has marked `Status: ready` — see `docs/backlog/README.md`'s
+  lifecycle section — deleting the backlog file in the same commit.
+  Move a merged task's file to `docs/tasks/done/` when tidying.
 - **Task file format** (so any harness can consume the queue): a
   header of `Key: value` lines (`Title:` at minimum), a blank line,
   then a markdown body that becomes the working agent's brief. Boring
